@@ -1,0 +1,15 @@
+.DS_Store
+node_modules/
+dist/
+.quasar/
+.env
+.env.*
+test-results/
+playwright-report/
+src-capacitor/node_modules/
+src-capacitor/www/
+src-capacitor/ios/App/Pods/
+src-capacitor/ios/DerivedData/
+src-capacitor/ios/App/build/
+*.xcuserstate
+xcuserdata/

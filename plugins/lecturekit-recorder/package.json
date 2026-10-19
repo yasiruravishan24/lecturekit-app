@@ -1,0 +1,12 @@
+{
+  "name": "lecturekit-recorder",
+  "version": "0.1.0",
+  "description": "Records a lecture in 5-minute parts with a 5-second overlap, in the background (iPhone), with a sound level and interruption events.",
+  "type": "module",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "files": ["src/", "ios/Sources/", "Package.swift", "LecturekitRecorder.podspec"],
+  "keywords": ["capacitor", "plugin", "native"],
+  "peerDependencies": { "@capacitor/core": ">=8.0.0" },
+  "capacitor": { "ios": { "src": "ios" } }
+}
