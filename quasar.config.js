@@ -42,11 +42,14 @@ export default defineConfig((/* ctx */) => {
       // filenameBasedRouting: true,
 
       vueRouterMode: 'hash', // available values: 'hash', 'history'
-      env: { LK_SERVER: process.env.LK_SERVER || 'https://localhost:8443', LK_SELFTEST: process.env.LK_SELFTEST || '' },       // the server the phone app talks to (changeable in the app)
+      // the server the phone app talks to (changeable in the app) and the self-test switch, put into the code at build time
+      define: {
+        'import.meta.env.LK_SERVER': JSON.stringify(process.env.LK_SERVER || 'https://localhost:8443'),
+        'import.meta.env.LK_SELFTEST': JSON.stringify(process.env.LK_SELFTEST || ''),
+      },
       // vueRouterBase,
 
       // publicPath: '/',
-      // define: {},
       // defineEnv: {}
       // ignorePublicFolder: true,
       // minify: false,

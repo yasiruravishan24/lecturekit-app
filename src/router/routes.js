@@ -16,15 +16,17 @@ const routes = [
     ],
   },
   {
-    path: '',                                 // its pages have full paths; it comes after the main layout, so that '/' is the home page
+    path: '/auth',
     component: () => import('@/layouts/AuthLayout.vue'),
     meta: { guest: true },
     children: [
-      { path: '/login', name: 'login', component: () => import('@/pages/LoginPage.vue') },
-      { path: '/register', name: 'register', component: () => import('@/pages/RegisterPage.vue') },
-      { path: '/verify', name: 'verify', component: () => import('@/pages/VerifyPage.vue') },
+      { path: 'login', name: 'login', component: () => import('@/pages/LoginPage.vue') },
+      { path: 'register', name: 'register', component: () => import('@/pages/RegisterPage.vue') },
+      { path: 'verify', name: 'verify', component: () => import('@/pages/VerifyPage.vue') },
     ],
   },
+  // the short addresses the pages use
+  ...['login', 'register', 'verify'].map((name) => ({ path: `/${name}`, redirect: (to) => ({ name, query: to.query }) })),
   // a build made with LK_SELFTEST=1 records for 50 seconds by itself on start and writes the result file (used to test the native recorder in the Simulator)
   ...(import.meta.env.LK_SELFTEST ? [{ path: '/selftest', component: () => import('@/pages/SpikePage.vue'), props: { auto: true } }] : []),
   { path: '/:catchAll(.*)*', component: () => import('@/pages/ErrorNotFound.vue') },
