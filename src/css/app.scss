@@ -44,7 +44,9 @@ body.body--dark .lk-error { color: #ff8a96; }
 .lk-info { background: var(--lk-tint); color: var(--lk-link); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
 
 /* ---- the web app's look: header, buttons, fields, sign-in pages ---- */
-.q-header { background: linear-gradient(90deg, #1565c0 0%, #1976d2 55%, #2196f3 100%) !important; box-shadow: 0 2px 8px rgba(21, 101, 192, 0.35); }
+.q-header { background: linear-gradient(90deg, #1565c0 0%, #1976d2 55%, #2196f3 100%) !important; box-shadow: none; }
+.q-layout__shadow { display: none; }          /* no glow under the header */
+.q-layout__shadow:after { box-shadow: none !important; }
 .q-btn { border-radius: 8px; }
 .q-field--outlined .q-field__control { border-radius: 8px; }
 body.body--dark .q-menu, body.body--dark .q-dialog__inner > .q-card { background: var(--lk-surface); }
