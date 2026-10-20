@@ -16,7 +16,7 @@ body.body--dark {
 html, body { font-family: Roboto, -apple-system, Arial, sans-serif; }
 body, body.body--dark { background: var(--lk-bg); color: var(--lk-text); font-size: 15px; -webkit-tap-highlight-color: transparent; }
 .q-page-container, .lk-page { background: var(--lk-bg); }
-.lk-page { padding: 16px 16px 24px; }
+.lk-page { padding: 16px 16px 24px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
 body.body--dark .text-primary { color: var(--lk-link) !important; }
 
 .lk-meta { font-size: 13px; color: var(--lk-text-2); }

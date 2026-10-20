@@ -33,6 +33,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
     }
 
+    /// The whole app stays upright (portrait). The camera screen asks the recorder plugin to allow landscape, and the plugin keeps the
+    /// chosen value here (a plain setting, because the plugin is a separate module).
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        let raw = UserDefaults.standard.integer(forKey: "lk_orientation_mask")
+        return raw == 0 ? .portrait : UIInterfaceOrientationMask(rawValue: UInt(raw))
+    }
+
     func application(_ application: UIApplication,
                      configurationForConnecting connectingSceneSession: UISceneSession,
                      options: UIScene.ConnectionOptions) -> UISceneConfiguration {

@@ -8,6 +8,7 @@ import { registerPlugin } from '@capacitor/core'
 //   status() -> { state: idle|recording|paused|interrupted, seconds, parts }
 //   checkPermission() / requestPermission() -> { status: granted|denied|prompt }
 //   freeSpace() -> { bytes }
+//   setOrientation({ mode: 'portrait' | 'landscape' | 'free' }) turn the screen and keep it; startTilt() / stopTilt() the level (event 'tilt' { roll, pitch })
 // events: 'chunk' { index, path, url, seconds } (a finished part), 'level' { db, seconds }, 'state' { state, canResume? }, 'error' { message }
 export const LectureRecorder = registerPlugin('LectureRecorder', {
   web: () => import('./web.js').then((m) => new m.LectureRecorderWeb()),

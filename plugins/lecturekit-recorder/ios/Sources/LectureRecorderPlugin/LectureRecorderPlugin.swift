@@ -1,6 +1,8 @@
 import Foundation
 import Capacitor
 import AVFoundation
+import CoreMotion
+import UIKit
 
 /// Records the lecture with the phone's microphone, in the background, and cuts it into parts (see ChunkSchedule.swift).
 /// Every part is a complete, playable AAC .m4a file (mono, 16 kHz, 32 kbps: about 14 MB an hour). The web view only starts and stops it and
@@ -17,7 +19,10 @@ public class LectureRecorderPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "resume", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "freeSpace", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "freeSpace", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setOrientation", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startTilt", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopTilt", returnType: CAPPluginReturnPromise)
     ]
 
     /// The web view is the whole app: its thin scroll indicator is hidden (the page still scrolls), and swiping from the left edge goes
@@ -29,6 +34,74 @@ public class LectureRecorderPlugin: CAPPlugin, CAPBridgedPlugin {
             web.scrollView.showsVerticalScrollIndicator = false
             web.scrollView.showsHorizontalScrollIndicator = false
         }
+    }
+
+    // MARK: screen orientation (the camera screen: portrait or landscape, then kept while recording)
+
+    private static let maskKey = "lk_orientation_mask"
+
+    /// mode: "portrait" | "landscape" (turn the screen there and keep it) | "free" (follow the phone)
+    @objc func setOrientation(_ call: CAPPluginCall) {
+        let mode = call.getString("mode") ?? "portrait"
+        let mask: UIInterfaceOrientationMask = mode == "landscape" ? .landscape : mode == "free" ? .allButUpsideDown : .portrait
+        UserDefaults.standard.set(Int(mask.rawValue), forKey: Self.maskKey)
+        DispatchQueue.main.async { [weak self] in
+            self?.turn(to: mask, thenKeepCurrent: mode != "free")
+            call.resolve()
+        }
+    }
+
+    private func turn(to mask: UIInterfaceOrientationMask, thenKeepCurrent: Bool) {
+        let scene = (bridge?.webView?.window?.windowScene) ?? (UIApplication.shared.connectedScenes.first as? UIWindowScene)
+        if #available(iOS 16.0, *) {
+            bridge?.viewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+            scene?.requestGeometryUpdate(.iOS(interfaceOrientations: mask)) { _ in }
+        } else {
+            let target: UIInterfaceOrientation = mask.contains(.portrait) ? .portrait : .landscapeRight
+            UIDevice.current.setValue(target.rawValue, forKey: "orientation")
+            UIViewController.attemptRotationToDeviceOrientation()
+        }
+        guard thenKeepCurrent else { return }
+        // once the screen has turned, allow only the way it is now: turning the phone over during a recording must not flip the picture
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+            guard let scene = scene else { return }
+            let exact: UIInterfaceOrientationMask
+            switch scene.interfaceOrientation {
+            case .landscapeLeft: exact = .landscapeLeft
+            case .landscapeRight: exact = .landscapeRight
+            case .portraitUpsideDown: exact = .portraitUpsideDown
+            default: exact = .portrait
+            }
+            UserDefaults.standard.set(Int(exact.rawValue), forKey: Self.maskKey)
+            if #available(iOS 16.0, *) { self?.bridge?.viewController?.setNeedsUpdateOfSupportedInterfaceOrientations() }
+        }
+    }
+
+    // MARK: level (how straight the phone is held)
+
+    private let motion = CMMotionManager()
+
+    /// Emits "tilt" about 15 times a second: angle = how the phone is turned (0 upright, +90 turned clockwise, -90 counter-clockwise, 180 upside down), roll = how far the picture is turned from level in degrees (+ right side low), pitch = how far the camera
+    /// points up (+) or down (-). Neither depends on whether the phone is held upright or on its side.
+    @objc func startTilt(_ call: CAPPluginCall) {
+        guard motion.isDeviceMotionAvailable else { call.reject("The motion sensors are not available"); return }
+        if motion.isDeviceMotionActive { call.resolve(); return }
+        motion.deviceMotionUpdateInterval = 1.0 / 15.0
+        motion.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
+            guard let g = data?.gravity else { return }
+            let angle = atan2(g.x, -g.y) * 180 / .pi                              // 0 upright, 90 or -90 on its side
+            var roll = (angle + 45).truncatingRemainder(dividingBy: 90)
+            if roll < 0 { roll += 90 }
+            roll -= 45
+            let pitch = asin(max(-1.0, min(1.0, g.z))) * 180 / .pi
+            self?.notifyListeners("tilt", data: ["roll": (roll * 10).rounded() / 10, "pitch": (pitch * 10).rounded() / 10, "angle": angle.rounded()])
+        }
+        call.resolve()
+    }
+
+    @objc func stopTilt(_ call: CAPPluginCall) {
+        motion.stopDeviceMotionUpdates()
+        call.resolve()
     }
 
     private final class Writer {

@@ -11,11 +11,13 @@
       <q-input v-model="title" outlined label="Lecture title" maxlength="160" class="q-mb-md" />
       <q-btn-toggle v-model="camera" spread unelevated no-caps toggle-color="primary" color="white" text-color="grey-8" class="lk-mode q-mb-md"
                     :options="[{ label: 'Sound only', value: false, icon: 'mic' }, { label: 'Camera + sound', value: true, icon: 'videocam' }]" />
-      <div v-if="camera" class="lk-cam q-mb-md">
-        <video :ref="setVideo" muted playsinline autoplay />
-        <q-btn round dense unelevated color="grey-9" icon="cameraswitch" aria-label="Switch camera" class="lk-flip" @click="flip" />
-        <div v-if="camError" class="lk-cam-msg">{{ camError }}</div>
-      </div>
+      <q-card v-if="camera" flat class="lk-card lk-camcard q-mb-md">
+        <q-icon name="videocam" size="30px" color="primary" />
+        <div class="col">
+          <div class="text-weight-medium">Full-screen camera</div>
+          <div class="lk-meta">Hold the phone upright or on its side: the picture turns to match, so a lecture on its side records as a landscape video. Pinch to zoom, and use the level to hold it straight.</div>
+        </div>
+      </q-card>
       <q-card flat class="lk-card q-mb-md">
         <q-item clickable @click="pick">
           <q-item-section avatar><q-icon name="slideshow" color="primary" size="28px" /></q-item-section>
@@ -30,7 +32,7 @@
         <template v-if="camera"> Point the camera at the board or screen. Keep this screen open and the phone still: the camera stops if you leave the app or lock the phone. Record only where the lecturer agrees.</template>
         <template v-else> Record only where the lecturer agrees. Keep the phone near the lecturer; you can lock the screen while it records.</template>
       </div>
-      <q-btn unelevated color="negative" size="lg" no-caps :icon="camera ? 'videocam' : 'center_focus_strong'" label="Start recording" class="full-width" :loading="starting" :disable="!moduleId" @click="start" />
+      <q-btn unelevated color="negative" size="lg" no-caps :icon="camera ? 'videocam' : 'center_focus_strong'" :label="camera ? 'Open the camera' : 'Start recording'" class="full-width" :loading="starting" :disable="!moduleId" @click="camera ? openStage() : start()" />
       <div class="text-center q-mt-lg"><span class="lk-meta">Already have a recording?</span> <router-link :to="{ path: '/upload', query: moduleId ? { module: moduleId } : {} }" class="lk-link">Upload it</router-link></div>
     </template>
 
@@ -40,7 +42,7 @@
       <div class="lk-section-title q-mb-sm">{{ rec.title }}</div>
       <div class="lk-panel" :class="[rec.phase, { cam: rec.camera }]">
         <div class="lk-panel-top"><span class="dot" /> {{ rec.phase === 'paused' ? 'PAUSED' : rec.phase === 'interrupted' ? 'INTERRUPTED' : 'REC' }} {{ rec.clockText(rec.seconds) }}</div>
-        <video v-if="rec.camera" :ref="setVideo" class="lk-rec-video" muted playsinline autoplay />
+        <div v-if="rec.camera" class="lk-meta text-center q-my-lg">Recording with the camera. The camera is full screen.</div>
         <div class="lk-bars" :class="{ small: rec.camera }" aria-hidden="true"><span v-for="(h, i) in bars" :key="i" :style="{ height: (rec.camera ? Math.round(h / 3) : h) + 'px' }" /></div>
         <div class="lk-panel-note">{{ levelText }}</div>
       </div>
@@ -121,16 +123,20 @@
         <q-btn outline no-caps color="primary" class="full-width q-mt-md" icon="home" label="Leave this screen" to="/" />
       </q-card>
     </template>
+    <camera-stage v-if="stageOpen" ref="stage" v-model:level="showLevel" v-model:grid="showGrid" :facing="facing" :tilt="tilt" :starting="starting"
+                  @close="closeStage" @flip="flip" @record="startCamera" @stop="confirmStop" @pause="rec.phase === 'recording' ? rec.pause() : rec.resume()" />
   </q-page>
 </template>
 
 <script setup>
 import PickField from '../components/PickField.vue'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import CameraStage from '../components/CameraStage.vue'
+import { LectureRecorder } from 'lecturekit-recorder'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import { useLibraryStore } from '../stores/library'
-import { cameraRecorder, useRecordingStore } from '../stores/recording'
+import { useRecordingStore } from '../stores/recording'
 import { useSettingsStore } from '../stores/settings'
 import { pickSlides } from '../recording/files'
 import { friendly } from '../util/errors'
@@ -145,23 +151,59 @@ const settings = useSettingsStore()
 const error = ref('')
 const camera = ref(false)
 const facing = ref('environment')
-const camError = ref('')
-let videoEl = null
-const setVideo = (el) => { videoEl = el; attach() }
-function attach() {
-  if (!videoEl) return
-  const s = cameraRecorder().stream()
-  if (s && videoEl.srcObject !== s) videoEl.srcObject = s
+const flag = (key) => { try { return localStorage.getItem(key) !== '0' } catch { return true } }
+const showLevel = ref(flag('lk_level'))                // the level over the picture, and the grid: two separate settings
+const showGrid = ref(flag('lk_grid'))
+const tilt = ref({ roll: 0, pitch: 0, angle: 0, ok: false })
+const stageOpen = ref(false)
+const stage = ref(null)
+let tiltListener = null
+async function level(on) {
+  try {
+    if (on) await LectureRecorder.startTilt(); else { await LectureRecorder.stopTilt(); tilt.value = { roll: 0, pitch: 0, angle: 0, ok: false } }
+  } catch { tilt.value = { roll: 0, pitch: 0, angle: 0, ok: false } }
 }
-async function openPreview() {
-  camError.value = ''
-  try { await cameraRecorder().preview(facing.value); await nextTick(); attach() } catch (e) { camError.value = 'The camera or microphone is off. Turn them on for Lecture Assistant in the phone Settings.' }
+const remember = (key) => (v) => { try { localStorage.setItem(key, v ? '1' : '0') } catch { /* private window */ } }
+watch(showLevel, remember('lk_level'))
+watch(showGrid, remember('lk_grid'))
+function openStage() {
+  if (!moduleId.value) return
+  error.value = ''
+  stageOpen.value = true
+  level(true)
 }
-watch(camera, (on) => { if (on) openPreview(); else cameraRecorder().stopPreview() })
-function flip() { facing.value = facing.value === 'environment' ? 'user' : 'environment'; openPreview() }
+function closeStage() { stageOpen.value = false; level(false) }
+function flip() { facing.value = facing.value === 'environment' ? 'user' : 'environment' }
+// the stage hands over its picture (turned and zoomed through a canvas); this starts the recording with it
+async function startCamera(pipeline) {
+  if (!pipeline) return
+  error.value = ''
+  starting.value = true
+  pipeline.lock()                                          // the shape of the picture stays the same until the recording ends
+  try {
+    await rec.start({ moduleId: moduleId.value, title: title.value.trim() || 'Lecture', slides: rec.slides, camera: true, facing: facing.value, stream: pipeline.stream })
+  } catch (e) {
+    pipeline.unlock()
+    error.value = e.message || friendly(e)
+    closeStage()
+  } finally {
+    starting.value = false
+  }
+}
+// the camera screen belongs to a recording that is going on, and goes away when it ends
+watch(() => rec.active && rec.camera, (on) => { if (on) { stageOpen.value = true; level(true) } })
+watch(() => rec.phase, (p) => { if (['stopping', 'sending', 'processing', 'done', 'failed', 'limit'].includes(p)) closeStage() })
 function onHidden() { if (document.hidden && rec.active && rec.camera) rec.notice = 'The camera stops when the app is in the background. Come back to this screen to carry on.' }
-onMounted(() => document.addEventListener('visibilitychange', onHidden))
-onBeforeUnmount(() => { document.removeEventListener('visibilitychange', onHidden); if (!rec.active) cameraRecorder().stopPreview() })
+onMounted(async () => {
+  document.addEventListener('visibilitychange', onHidden)
+  tiltListener = await LectureRecorder.addListener('tilt', (e) => { tilt.value = { roll: e.roll, pitch: e.pitch, angle: e.angle || 0, ok: true } })
+  if (rec.active && rec.camera) { stageOpen.value = true; level(true) }
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onHidden)
+  if (tiltListener) tiltListener.remove()
+  if (!rec.active) { level(false) }
+})
 const starting = ref(false)
 const moduleId = ref(Number(route.query.module) || null)
 const stamp = new Date()
@@ -250,6 +292,13 @@ async function sendNow() { await settings.setWifiOnly(false); rec.kick() }
 .lk-mode { border: 1px solid var(--lk-border); border-radius: 8px; background: var(--lk-surface); }
 .lk-cam { position: relative; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 10; }
 .lk-cam video, .lk-rec-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lk-camcard { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; }
+.lk-camopts-unused { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.lk-orient { flex: none; }
+.lk-cam.landscape { aspect-ratio: 16 / 9; }
+.lk-cam.portrait { aspect-ratio: 3 / 4; max-height: 60vh; margin-left: auto; margin-right: auto; }
+.lk-rec-wrap { position: relative; margin: 10px 0; border-radius: 8px; overflow: hidden; background: #000; }
+.lk-rec-wrap .lk-rec-video { margin: 0; display: block; }
 .lk-flip { position: absolute; right: 10px; bottom: 10px; opacity: 0.85; }
 .lk-cam-msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; color: #fff; font-size: 13px; background: rgba(0, 0, 0, 0.6); }
 .lk-panel.cam { min-height: 0; padding: 12px; }

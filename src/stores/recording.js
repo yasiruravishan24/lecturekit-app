@@ -109,7 +109,7 @@ export const useRecordingStore = defineStore('recording', {
     },
 
     // ---- start ----
-    async start({ moduleId, title, slides = [], camera = false, facing = 'environment' }) {
+    async start({ moduleId, title, slides = [], camera = false, facing = 'environment', stream = null }) {
       this.camera = camera
       this.error = ''
       this.notice = ''
@@ -128,7 +128,7 @@ export const useRecordingStore = defineStore('recording', {
       Object.assign(this, { sessionId: session.id, title, moduleId, slides, seconds: 0, level: -80, quietFor: 0, chunkSeconds: live.chunk_seconds, overlap: live.overlap, total: 0, jobId: null, job: null, sent: 0, pending: 0 })
       await this._listen()
       try {
-        const r = await this._rec().start({ chunkSeconds: live.chunk_seconds, overlap: live.overlap, folder: `s${session.id}`, ...(camera ? { video: true, facing } : {}) })
+        const r = await this._rec().start({ chunkSeconds: live.chunk_seconds, overlap: live.overlap, folder: `s${session.id}`, ...(camera ? { video: true, facing, stream } : {}) })
         this.folder = r.folder
       } catch (e) {
         this._unlisten()

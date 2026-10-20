@@ -16,6 +16,20 @@ export class LectureRecorderWeb extends WebPlugin {
     try { (await navigator.mediaDevices.getUserMedia({ audio: true })).getTracks().forEach((t) => t.stop()); return { status: 'granted' } } catch { return { status: 'denied' } }
   }
 
+  // browser stand-ins: no screen to turn; the level can be faked for tests with localStorage.lk_test_tilt = "roll,pitch"
+  async setOrientation() {}
+
+  async startTilt() {
+    this.stopTilt()
+    let fake = null
+    try { fake = localStorage.getItem('lk_test_tilt') } catch { /* no storage */ }
+    if (!fake) return
+    const [roll, pitch, angle = 0] = fake.split(',').map(Number)
+    this.tiltTimer = setInterval(() => this.notifyListeners('tilt', { roll, pitch, angle }), 100)
+  }
+
+  async stopTilt() { clearInterval(this.tiltTimer); this.tiltTimer = null }
+
   async freeSpace() { return { bytes: 10 * 1024 * 1024 * 1024 } }
 
   // the camera picture before recording starts (and the same stream is then recorded). facing: 'environment' (back) or 'user' (front)
@@ -36,10 +50,10 @@ export class LectureRecorderWeb extends WebPlugin {
 
   stream() { return (this.r && this.r.stream) || this.pre || null }
 
-  async start({ chunkSeconds = 300, overlap = 5, folder = 'recording', video = false, facing = 'environment' } = {}) {
+  async start({ chunkSeconds = 300, overlap = 5, folder = 'recording', video = false, facing = 'environment', stream: given = null } = {}) {
     if (this.r) throw new Error('A recording is already running')
-    let stream = this.pre
-    this.pre = null
+    let stream = given || this.pre         // a ready-made stream: the camera screen turns and zooms the picture first
+    if (!given) this.pre = null
     if (!video && stream) { stream.getTracks().forEach((t) => t.stop()); stream = null }
     if (!stream) stream = video ? await this.preview(facing).then((s) => { this.pre = null; return s }) : await navigator.mediaDevices.getUserMedia({ audio: true })
     const ctx = new AudioContext()

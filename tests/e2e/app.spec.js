@@ -1,7 +1,8 @@
 // The app in a browser (fake microphone), against the real local server. The native recorder is replaced by its browser version.
 import { readFileSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { test, expect } from '@playwright/test'
-import { api, loginAs, makeSession, makeUser, PASSWORD, sample } from './helpers.js'
+import { api, loginAs, makeSession, makeUser, PASSWORD, root, sample } from './helpers.js'
 
 test('log in with a wrong and then the right password', async ({ page }) => {
   const user = await makeUser('m1')
@@ -47,33 +48,6 @@ test('record in parts, pause, stop: every part is sent and the notes are asked f
   expect(status.json.missing).toEqual([])
   expect(finished).toContain('total=3')
   await page.screenshot({ path: 'test-results/done.png' })
-})
-
-test('camera mode: the parts that reach the server have picture and sound', async ({ page }) => {
-  const user = await makeUser('m3')
-  const { module } = await makeSession(user, 'x')
-  await loginAs(page, user)
-  await page.addInitScript(() => localStorage.setItem('lk_test_chunk', '10'))
-  await page.route('**/api/sessions/*/live/finish*', (r) => r.fulfill({ json: { job_id: 998 } }))
-  await page.route('**/api/jobs/998', (r) => r.fulfill({ json: { id: 998, state: 'done', stage: 'done', percent: 100 } }))
-  await page.goto(`/#/capture?module=${module.id}`)
-  await page.getByLabel('Lecture title').fill('Camera lecture')
-  await page.getByRole('button', { name: 'Camera + sound' }).click()
-  await expect.poll(() => page.locator('.lk-cam video').evaluate((v) => v.videoWidth), { timeout: 15000 }).toBeGreaterThan(0)      // the picture shows before recording
-  await page.screenshot({ path: 'test-results/camera-ready.png' })
-  await page.getByRole('button', { name: 'Start recording' }).click()
-  await expect(page.getByText(/REC 00:0/)).toBeVisible()
-  await expect.poll(() => page.locator('.lk-rec-video').evaluate((v) => v.videoWidth), { timeout: 10000 }).toBeGreaterThan(0)       // and while recording
-  await page.screenshot({ path: 'test-results/camera-recording.png' })
-  await page.waitForTimeout(14000)
-  await page.getByRole('button', { name: 'Stop', exact: true }).click()
-  await page.getByRole('button', { name: 'Stop', exact: true }).last().click()
-  await expect(page.getByText('Notes are ready')).toBeVisible({ timeout: 60000 })
-  const id = (await api('GET', `/modules/${module.id}/sessions`, user)).json.at(-1).id
-  const status = await api('GET', `/sessions/${id}/live?total=2`, user)
-  expect(status.json.received).toEqual([0, 1])
-  const down = await fetch(`https://localhost:8443/api/sessions/${id}`, { headers: { Authorization: `Bearer ${user.token}` } }).then((r) => r.json())
-  expect(down.id).toBe(id)
 })
 
 test('a recording that was never sent is offered again, and can be discarded', async ({ page }) => {
@@ -189,4 +163,85 @@ test('after Stop with no connection: the sending screen explains and keeps the r
   await expect(page.getByText('Your recording is saved on this phone until it has been sent.')).toBeVisible()
   await page.waitForTimeout(900)
   await page.screenshot({ path: 'tests/e2e/shots/sending.png' })
+})
+
+test('camera mode: full-screen camera, turned to the way the phone is held, zoom, level, and parts with picture and sound', async ({ page }) => {
+  const user = await makeUser('m3')
+  const { module } = await makeSession(user, 'x')
+  await loginAs(page, user)
+  await page.addInitScript(() => { localStorage.setItem('lk_test_chunk', '10'); if (!localStorage.getItem('lk_test_tilt')) localStorage.setItem('lk_test_tilt', '3.6,-8,0') })      // upright, a little tilted
+  await page.route('**/api/sessions/*/live/finish*', (r) => r.fulfill({ json: { job_id: 998 } }))
+  await page.route('**/api/jobs/998', (r) => r.fulfill({ json: { id: 998, state: 'done', stage: 'done', percent: 100 } }))
+  await page.goto(`/#/capture?module=${module.id}`)
+  await page.getByLabel('Lecture title').fill('Camera lecture')
+  await expect(page.locator('.lk-stage')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Camera + sound' }).click()
+  await page.getByRole('button', { name: 'Open the camera' }).click()
+  await expect(page.locator('.lk-stage-canvas')).toBeVisible()
+  await expect(page.getByText('Right side is low (4°) · Pointing down')).toBeVisible()          // the level, over the picture
+  const shape = () => page.locator('.lk-stage-canvas').evaluate((c) => ({ w: c.width, h: c.height }))
+  const s1 = await shape()
+  expect(s1.h).toBeGreaterThan(s1.w)                                                          // held upright: a portrait picture (the fake camera is landscape, so it was turned)
+  await page.getByRole('button', { name: '2×' }).click()
+  await expect(page.getByRole('button', { name: '2×' })).toHaveClass(/on/)                   // zoom
+  await page.screenshot({ path: 'tests/e2e/shots/stage.png' })
+  await page.getByRole('button', { name: 'Start recording' }).click()
+  await expect(page.locator('.lk-stage-rec')).toContainText(/REC 00:0/)
+  await page.waitForTimeout(14000)
+  await page.locator('.lk-stage').getByRole('button', { name: 'Stop', exact: true }).click()
+  await page.getByRole('button', { name: 'Stop', exact: true }).last().click()
+  await expect(page.getByText('Notes are ready')).toBeVisible({ timeout: 60000 })
+  const id = (await api('GET', `/modules/${module.id}/sessions`, user)).json.at(-1).id
+  const status = await api('GET', `/sessions/${id}/live?total=2`, user)
+  expect(status.json.received).toEqual([0, 1])
+  const dims = execSync(`docker compose exec -T app sh -c 'f=$(ls /data/users/*/sessions/${id}/chunks/chunk_00000.*  | grep -v json | head -1); ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0 $f'`, { cwd: root }).toString().trim().split(',').map(Number)
+  expect(dims[1]).toBeGreaterThan(dims[0])                                                    // the recorded video is portrait too
+})
+
+test('camera mode on its side: the picture is landscape', async ({ page }) => {
+  const user = await makeUser('m11')
+  const { module } = await makeSession(user, 'x')
+  await loginAs(page, user)
+  await page.addInitScript(() => localStorage.setItem('lk_test_tilt', '0.5,1,90'))          // the phone turned clockwise, held level
+  await page.goto(`/#/capture?module=${module.id}`)
+  await page.getByRole('button', { name: 'Camera + sound' }).click()
+  await page.getByRole('button', { name: 'Open the camera' }).click()
+  await expect(page.locator('.lk-stage-canvas')).toBeVisible()
+  await expect(page.locator('.lk-level.ok')).toBeVisible()
+  await expect.poll(() => page.locator('.lk-stage-canvas').evaluate((c) => c.width > c.height)).toBe(true)      // on its side: a landscape picture
+  await expect.poll(() => page.locator('.lk-stage-canvas').evaluate((c) => c.style.transform)).toContain('rotate(-90deg)')      // shown the way the person sees it
+  await page.screenshot({ path: 'tests/e2e/shots/stage-side.png' })
+  await expect(page.locator('.lk-stage-grid')).toBeVisible()
+  await page.getByRole('button', { name: 'Level', exact: true }).click()                      // the level and the grid are two separate settings
+  await expect(page.locator('.lk-level')).toHaveCount(0)
+  await expect(page.locator('.lk-stage-grid')).toBeVisible()
+  await page.getByRole('button', { name: 'Grid', exact: true }).click()
+  await expect(page.locator('.lk-stage-grid')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Level', exact: true }).click()
+  await expect(page.locator('.lk-level.ok')).toBeVisible()
+  await page.getByRole('button', { name: 'Turn the picture a quarter' }).click()           // if the picture looks wrong, turn it
+  await expect.poll(() => page.locator('.lk-stage-canvas').evaluate((c) => c.height > c.width)).toBe(true)
+  await page.getByRole('button', { name: 'Close the camera' }).click()
+  await expect(page.locator('.lk-stage')).toHaveCount(0)
+})
+
+test('camera mode on its side while recording: the timer is not cut off', async ({ page }) => {
+  const user = await makeUser('m12')
+  const { module } = await makeSession(user, 'x')
+  await loginAs(page, user)
+  await page.addInitScript(() => localStorage.setItem('lk_test_tilt', '0.5,1,90'))
+  await page.route('**/api/sessions/*/live*', (r) => r.fulfill({ json: { chunk_seconds: 300, overlap: 5, received: [], missing: [] } }))
+  await page.goto(`/#/capture?module=${module.id}`)
+  await page.getByRole('button', { name: 'Camera + sound' }).click()
+  await page.getByRole('button', { name: 'Open the camera' }).click()
+  await page.getByRole('button', { name: 'Start recording' }).click()
+  const pill = page.locator('.lk-stage-rec')
+  await expect(pill).toContainText('REC')
+  await expect(pill).toHaveClass(/down|up/)
+  const box = await pill.boundingBox()
+  const dot = await pill.locator('.dot').boundingBox()
+  expect(box.height).toBeGreaterThan(box.width)                                                // a tall pill
+  expect(dot.y).toBeGreaterThanOrEqual(box.y - 1)                                              // the red dot lies fully inside it
+  expect(dot.y + dot.height).toBeLessThanOrEqual(box.y + box.height + 1)
+  await page.screenshot({ path: 'tests/e2e/shots/stage-rec-side.png' })
 })
