@@ -99,7 +99,9 @@
             <div v-if="cur.links.length" class="lk-deeper-block">
               <div class="lk-label text-primary q-mb-xs">Pages to read</div>
               <a v-for="l in cur.links" :key="l.url" :href="l.url" target="_blank" rel="noopener noreferrer" class="lk-link-row">
-                <q-icon name="open_in_new" size="18px" /><span class="lk-link-text">{{ l.title }}</span><span class="lk-meta">{{ host(l.url) }}</span>
+                <span class="lk-link-icon"><q-icon name="public" size="20px" /></span>
+                <span class="lk-link-body"><span class="lk-link-text">{{ l.title }}</span><span class="lk-link-host">{{ host(l.url) }}</span></span>
+                <q-icon name="open_in_new" size="18px" class="lk-link-go" />
               </a>
             </div>
           </template>
@@ -173,9 +175,13 @@ const stageText = computed(() => {
 .lk-check-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lk-text-2); }
 .lk-check-claim { margin: 6px 0 0; padding: 8px 12px; border-left: 3px solid var(--lk-warning); background: var(--lk-surface); border-radius: 0 8px 8px 0; font-style: italic; line-height: 1.5; }
 .lk-check-why { margin-top: 6px; line-height: 1.55; }
-.lk-link-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--lk-link); text-decoration: none; }
+.lk-link-row { display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 8px; border: 1px solid var(--lk-border); background: var(--lk-surface); border-radius: 12px; color: var(--lk-text); text-decoration: none; }
 .lk-link-row:hover { background: var(--lk-tint); }
-.lk-link-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-link-icon { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--lk-tint); color: var(--lk-primary); display: grid; place-items: center; }
+.lk-link-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lk-link-text { color: var(--lk-link); font-weight: 500; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.lk-link-host { font-size: 12.5px; color: var(--lk-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-link-go { flex: none; color: var(--lk-text-2); }
 .lk-pager { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 24px 10px 0; border-top: 1px solid var(--lk-border); background: var(--lk-surface); }
 @media (max-width: 1023px) {
   .lk-deeper { height: auto; }

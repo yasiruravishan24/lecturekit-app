@@ -6,6 +6,7 @@ const routes = [
     meta: { requiresAuth: true },
     children: [
       { path: '', name: 'home', component: () => import('@/pages/DashboardPage.vue'), meta: { title: 'Home', tab: 'home', bare: true } },
+      { path: 'courses/all', name: 'courses-all', component: () => import('@/pages/HomePage.vue'), meta: { title: 'All courses', tab: 'courses', back: true, all: true } },
       { path: 'courses', name: 'courses', component: () => import('@/pages/HomePage.vue'), meta: { title: 'My courses', tab: 'courses' } },
       { path: 'settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: 'Settings', tab: 'settings' } },
       { path: 'capture', name: 'capture', component: () => import('@/pages/CapturePage.vue'), meta: { title: 'Record a lecture', tab: 'capture' } },

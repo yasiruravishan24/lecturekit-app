@@ -174,3 +174,23 @@ body:not(.body--dark) .lk-banner.error { color: var(--lk-negative); }
 body.body--dark .q-tab-panels, body.body--dark .q-tab-panel, body.body--dark .q-panel { background: transparent !important; }
 body.body--dark .q-card { background: var(--lk-surface); color: var(--lk-text); }
 body.body--dark .q-tabs { color: var(--lk-text); }
+
+/* a lecture that is being recorded, or was not finished */
+.lk-livecard { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 26px 18px 20px; border-radius: 20px; background: var(--lk-surface); border: 1px solid var(--lk-border); box-shadow: var(--lk-shadow); }
+.lk-livecard.going { border-color: rgba(193, 0, 21, 0.35); background: linear-gradient(180deg, rgba(193, 0, 21, 0.07), var(--lk-surface) 55%); }
+.lk-live-badge { position: relative; width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; background: var(--lk-tint); color: var(--lk-primary); margin-bottom: 4px; }
+.lk-livecard.going .lk-live-badge { background: rgba(193, 0, 21, 0.12); color: var(--lk-negative); }
+.lk-live-ring { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid rgba(193, 0, 21, 0.35); }
+.lk-live-title { font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+.lk-live-sub { max-width: 320px; line-height: 1.5; }
+.lk-live-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin: 8px 0 6px; }
+.lk-live-grid > div { background: var(--lk-surface-2); border-radius: 14px; padding: 12px 4px; display: flex; flex-direction: column; }
+.lk-live-grid b { font-size: 26px; font-weight: 600; line-height: 1.1; }
+.lk-live-grid span { font-size: 12px; color: var(--lk-text-2); margin-top: 2px; }
+.lk-live-hint { display: flex; gap: 8px; align-items: flex-start; text-align: left; width: 100%; background: var(--lk-tint); color: var(--lk-link); border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.45; }
+.lk-live-hint .q-icon { flex: none; margin-top: 2px; }
+.lk-live-buttons { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+@media (max-width: 1023px) {
+  .lk-head-row.solo { position: relative; padding-right: 44px; }
+  .lk-head-actions.solo { position: absolute; top: 0; right: 0; width: auto; }
+}

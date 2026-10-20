@@ -1,4 +1,5 @@
 // The app in a browser (fake microphone), against the real local server. The native recorder is replaced by its browser version.
+import { readFileSync } from 'node:fs'
 import { test, expect } from '@playwright/test'
 import { api, loginAs, makeSession, makeUser, PASSWORD, sample } from './helpers.js'
 
@@ -133,4 +134,40 @@ test('upload a recording and slides from the phone: the lecture is created and s
   expect(s.json.title).toBe('Uploaded lecture')
   expect(s.json.files.map((f) => f.kind).sort()).toEqual(['recording', 'slides'])
   expect(processed).toBe(true)
+})
+
+test('Courses tab: five courses, a button for all of them, and the latest three lectures', async ({ page }) => {
+  const user = await makeUser('m7')
+  for (let i = 1; i <= 7; i += 1) {
+    const c = await api('POST', '/courses', user, { name: `Course ${i}` })
+    const m = await api('POST', `/courses/${c.json.id}/modules`, user, { name: 'Module' })
+    if (i <= 4) await api('POST', `/modules/${m.json.id}/sessions`, user, { title: `Lecture ${i}` })
+  }
+  await loginAs(page, user)
+  await page.goto('/#/courses')
+  await expect(page.locator('.lk-course')).toHaveCount(5)
+  await expect(page.locator('.lk-act')).toHaveCount(2)                                            // capture and upload come first
+  await expect(page.getByText('Recent lectures')).toBeVisible()
+  await expect(page.locator('a[href*="#/sessions/"]')).toHaveCount(3)                              // only the latest three
+  await page.getByRole('link', { name: /View all courses \(7\)/ }).click()
+  await expect(page.locator('.lk-course')).toHaveCount(7)
+  await expect(page.getByText('Recent lectures')).toHaveCount(0)
+})
+
+test('a lecture that is being recorded by another device shows its progress', async ({ page }) => {
+  const user = await makeUser('m8')
+  const { module } = await makeSession(user, 'x')
+  const made = (await api('POST', `/modules/${module.id}/sessions`, user, { title: 'Live lecture' })).json
+  const base = 'https://localhost:8443/api'
+  await fetch(`${base}/sessions/${made.id}/live`, { method: 'POST', headers: { Authorization: `Bearer ${user.token}` } })
+  const form = new FormData()
+  form.append('chunk', new Blob([readFileSync(sample('chunk0.m4a'))]), 'chunk_00000.m4a')
+  await fetch(`${base}/sessions/${made.id}/live/chunks?index=0`, { method: 'POST', headers: { Authorization: `Bearer ${user.token}` }, body: form })
+  await loginAs(page, user)
+  await page.goto(`/#/sessions/${made.id}`)
+  await expect(page.getByText('Recording in progress')).toBeVisible()
+  await expect(page.getByText('Another device is recording this lecture.')).toBeVisible()
+  await expect(page.getByText('Parts received')).toHaveCount(0)                      // exactly one part: singular
+  await expect(page.getByText('Part received')).toBeVisible()
+  await page.screenshot({ path: 'tests/e2e/shots/live.png' })
 })

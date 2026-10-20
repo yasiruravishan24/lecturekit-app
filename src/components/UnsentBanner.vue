@@ -1,5 +1,5 @@
 <template>
-  <q-card v-if="rec.unsent && rec.phase === 'idle'" flat class="lk-card lk-unsent">
+  <q-card v-if="rec.unsent && rec.phase === 'idle'" flat class="lk-card lk-unsent" :class="{ inline }">
     <div class="row items-start no-wrap">
       <q-icon name="cloud_off" size="28px" color="warning" class="q-mr-md q-mt-xs" />
       <div class="col">
@@ -20,6 +20,7 @@ import { useRouter } from 'vue-router'
 import { useRecordingStore } from '../stores/recording'
 import { plural } from '../util/format'
 
+defineProps({ inline: Boolean })          // inside a page that has its own padding
 const $q = useQuasar()
 const router = useRouter()
 const rec = useRecordingStore()
@@ -31,4 +32,5 @@ function discard() {
 
 <style scoped>
 .lk-unsent { margin: 12px 16px 0; padding: 14px 16px; border-color: var(--lk-warning); }
+.lk-unsent.inline { margin: 0 0 22px; }
 </style>

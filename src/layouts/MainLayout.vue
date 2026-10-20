@@ -7,7 +7,7 @@
       </q-toolbar>
     </q-header>
     <q-page-container>
-      <unsent-banner v-if="route.meta.tab && route.meta.tab !== 'capture'" />
+      <unsent-banner v-if="route.meta.tab && route.meta.tab !== 'capture' && !route.meta.bare" />       <!-- the Home screen shows it between the greeting and the overview -->
       <router-view @title="(t) => (pageTitle = t)" />
     </q-page-container>
 

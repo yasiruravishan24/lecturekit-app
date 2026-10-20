@@ -9,29 +9,13 @@
       <q-btn unelevated color="primary" no-caps icon="add" label="Add a course" @click="addCourse" />
     </div>
 
-    <div v-if="library.courses.length" class="lk-actions">
+    <div v-if="!showAll && library.courses.length" class="lk-actions">
       <router-link to="/capture" class="lk-act cap"><span class="lk-act-icon"><q-icon name="center_focus_strong" size="26px" /></span><span class="lk-act-title">Capture</span><span class="lk-act-sub">Record a lecture, sound or camera</span></router-link>
       <router-link to="/upload" class="lk-act up"><span class="lk-act-icon"><q-icon name="upload_file" size="26px" /></span><span class="lk-act-title">Upload</span><span class="lk-act-sub">Use a recording from your phone</span></router-link>
     </div>
 
-    <template v-if="recent.length">
-      <div class="lk-label q-mb-sm">Recent lectures</div>
-      <q-card flat class="lk-card q-mb-lg">
-        <q-list separator>
-          <q-item v-for="s in recent" :key="s.id" clickable :to="`/sessions/${s.id}`">
-            <q-item-section avatar><q-icon :name="kindOf(s).icon" color="primary" /></q-item-section>
-            <q-item-section>
-              <q-item-label>{{ s.title }}</q-item-label>
-              <q-item-label caption>{{ s.module_name }}</q-item-label>
-            </q-item-section>
-            <q-item-section side><status-chip :session="s" /></q-item-section>
-          </q-item>
-        </q-list>
-      </q-card>
-    </template>
-
-    <div v-if="library.courses.length" class="row items-center q-mb-xs"><div class="lk-label col">My courses</div><q-btn flat dense no-caps color="primary" icon="add" label="Add course" @click="addCourse" /></div>
-    <q-card v-for="c in library.courses" :key="c.id" flat class="lk-card q-mb-md">
+    <div v-if="library.courses.length" class="row items-center q-mb-xs"><div class="lk-label col">{{ showAll ? `All courses (${library.courses.length})` : 'My courses' }}</div><q-btn flat dense no-caps color="primary" icon="add" label="Add course" @click="addCourse" /></div>
+    <q-card v-for="c in courses" :key="c.id" flat class="lk-card q-mb-md">
       <q-item clickable @click="toggle(c)" class="lk-course">
         <q-item-section avatar><q-icon name="folder" color="primary" size="30px" /></q-item-section>
         <q-item-section>
@@ -53,6 +37,24 @@
       </template>
     </q-card>
 
+    <q-btn v-if="!showAll && library.courses.length" flat no-caps color="primary" icon-right="arrow_forward" :label="`View all courses (${library.courses.length})`" to="/courses/all" class="full-width q-mb-lg lk-all" />
+
+    <template v-if="!showAll && recent.length">
+      <div class="lk-label q-mb-sm">Recent lectures</div>
+      <q-card flat class="lk-card q-mb-md">
+        <q-list separator>
+          <q-item v-for="s in recent" :key="s.id" clickable :to="`/sessions/${s.id}`">
+            <q-item-section avatar><q-icon :name="kindOf(s).icon" color="primary" /></q-item-section>
+            <q-item-section>
+              <q-item-label>{{ s.title }}</q-item-label>
+              <q-item-label caption>{{ s.module_name }}</q-item-label>
+            </q-item-section>
+            <q-item-section side><status-chip :session="s" /></q-item-section>
+          </q-item>
+        </q-list>
+      </q-card>
+    </template>
+
     <q-inner-loading :showing="library.loading && !library.loaded" />
   </q-page>
 </template>
@@ -60,6 +62,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { useRoute } from 'vue-router'
 import { useLibraryStore } from '../stores/library'
 import StatusChip from '../components/StatusChip.vue'
 import { friendly } from '../util/errors'
@@ -67,13 +70,16 @@ import { plural } from '../util/format'
 import { kindOf } from '../util/status'
 
 const $q = useQuasar()
+const route = useRoute()
+const showAll = computed(() => !!route.meta.all)               // the full list of courses, from the button on the Courses tab
 const library = useLibraryStore()
 const error = ref('')
 const open = ref({})
 const isOpen = (c) => (c.id in open.value ? open.value[c.id] : library.courses[0] === c)
 const toggle = (c) => { open.value = { ...open.value, [c.id]: !isOpen(c) } }
 const sessionCount = (c) => c.modules.reduce((n, m) => n + m.sessions.length, 0)
-const recent = computed(() => [...library.allSessions].sort((a, b) => b.id - a.id).slice(0, 5))
+const recent = computed(() => [...library.allSessions].sort((a, b) => b.id - a.id).slice(0, 3))
+const courses = computed(() => (showAll.value ? library.courses : library.courses.slice(0, 5)))
 
 function ask(title, label) {
   return new Promise((resolve) => $q.dialog({ title, prompt: { model: '', label, outlined: true, isValid: (v) => v.trim().length > 0 && v.length <= 120 }, cancel: true, persistent: true })
@@ -91,6 +97,7 @@ defineExpose({ addCourse })
 </script>
 
 <style scoped>
+.lk-all { border: 1px solid var(--lk-border); border-radius: 12px; background: var(--lk-surface); height: 48px; }
 .lk-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
 .lk-act { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: 16px; text-decoration: none; color: #fff; min-height: 128px; box-shadow: 0 6px 16px rgba(25, 118, 210, 0.25); }
 .lk-act.cap { background: linear-gradient(135deg, #1565c0, #2196f3); }

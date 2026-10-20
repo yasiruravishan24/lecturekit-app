@@ -12,6 +12,8 @@
       <router-link to="/settings" class="lk-avatar" aria-label="Account">{{ initials(auth.user && auth.user.full_name, auth.user && auth.user.email) }}</router-link>
     </header>
 
+    <unsent-banner inline />
+
     <section class="lk-block">
       <div class="lk-block-head"><h2>Overview</h2></div>
       <router-link v-for="o in overview" :key="o.title" :to="o.to" class="lk-ov">
@@ -57,6 +59,7 @@ import { useAuthStore } from '../stores/auth'
 import { useLibraryStore } from '../stores/library'
 import { useNotificationsStore } from '../stores/notifications'
 import StatusChip from '../components/StatusChip.vue'
+import UnsentBanner from '../components/UnsentBanner.vue'
 import { initials, plural } from '../util/format'
 import { kindOf } from '../util/status'
 

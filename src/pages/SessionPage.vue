@@ -7,13 +7,13 @@
         <router-link :to="`/modules/${where.id}`">{{ where.name }}</router-link>
       </nav>
 
-      <div class="lk-head-row">
+      <div class="lk-head-row" :class="{ solo: session.state !== 'done' }">
         <div class="lk-title-row">
           <h1 class="lk-title q-mb-none">{{ session.title }}</h1>
           <status-chip :session="session" />
           <span v-if="meta" class="lk-chip info">{{ meta }}</span>
         </div>
-        <div class="lk-no-print lk-head-actions">
+        <div class="lk-no-print lk-head-actions" :class="{ solo: session.state !== 'done' }">
           <template v-if="session.state === 'done'">
             <q-btn outline color="primary" icon="ios_share" :label="$q.screen.lt.md ? undefined : 'Export'" :round="$q.screen.lt.md" :icon-right="$q.screen.lt.md ? undefined : 'arrow_drop_down'" aria-label="Export" class="q-mr-sm">
               <q-menu><q-list style="min-width: 220px">
@@ -58,22 +58,29 @@
       </q-card>
 
       <!-- a recording made with the extension (or the mobile app): going on, or not finished -->
-      <q-card v-else-if="session.state === 'live'" flat bordered class="lk-card lk-live" :class="{ going: recordingNow }">
-        <div class="lk-live-top">
-          <span class="lk-live-icon"><q-icon :name="recordingNow ? 'sensors' : 'pause_circle'" size="30px" /></span>
-          <div class="lk-live-text">
-            <div class="lk-live-title">{{ recordingNow ? 'Recording in progress' : 'This recording was not finished' }}</div>
-            <div class="lk-meta">
-              <template v-if="recordingNow">A part reaches the server about every 5 minutes. This page updates by itself. Stop the recording on the device that is recording to make the notes.</template>
-              <template v-else>{{ liveTotal ? 'The recording stopped before it was finished. You can make notes from what arrived.' : 'No part of the recording reached the server.' }}</template>
-            </div>
-          </div>
+      <div v-else-if="session.state === 'live'" class="lk-livecard" :class="{ going: recordingNow }">
+        <span class="lk-live-badge"><span v-if="recordingNow" class="lk-live-ring" /><q-icon :name="recordingNow ? 'sensors' : 'pause_circle_outline'" size="40px" /></span>
+        <div class="lk-live-title">{{ recordingNow ? 'Recording in progress' : 'This recording was not finished' }}</div>
+        <div class="lk-meta lk-live-sub">
+          <template v-if="recordingNow">{{ isThisPhone ? 'This phone is recording this lecture.' : 'Another device is recording this lecture.' }} This page updates by itself.</template>
+          <template v-else>{{ liveTotal ? 'The recording stopped before it was finished. You can make notes from what arrived.' : 'No part of the recording reached the server.' }}</template>
         </div>
-        <div v-if="!recordingNow" class="lk-live-actions">
-          <q-btn unelevated color="primary" no-caps icon="auto_awesome" label="Finish and make notes" :loading="working" :disable="!liveTotal" @click="finishLive" />
-          <q-btn flat color="negative" no-caps icon="delete" label="Delete this recording" :disable="working" @click="remove" />
+
+        <div class="lk-live-grid">
+          <div><b>{{ liveReceived }}</b><span>{{ liveReceived === 1 ? 'Part received' : 'Parts received' }}</span></div>
+          <div><b>{{ liveMinutes }}</b><span>Minutes so far</span></div>
+          <div><b>{{ liveTranscribed }}</b><span>Transcribed</span></div>
         </div>
-      </q-card>
+
+        <template v-if="recordingNow">
+          <q-btn v-if="isThisPhone" unelevated color="negative" no-caps size="lg" icon="center_focus_strong" label="Go to the recording" to="/capture" class="full-width" />
+          <div v-else class="lk-live-hint"><q-icon name="info" size="18px" /><span>A part reaches the server about every 5 minutes. Press Stop on the device that is recording to make the notes.</span></div>
+        </template>
+        <div v-else class="lk-live-buttons">
+          <q-btn unelevated color="primary" no-caps size="lg" icon="auto_awesome" label="Finish and make notes" :loading="working" :disable="!liveTotal" class="full-width" @click="finishLive" />
+          <q-btn flat color="negative" no-caps icon="delete" label="Delete this recording" :disable="working" class="full-width" @click="remove" />
+        </div>
+      </div>
 
       <!-- empty -->
       <q-card v-else-if="session.state === 'empty'" flat bordered class="lk-card">
@@ -117,6 +124,7 @@ import { friendly } from '../util/errors'
 import { plural } from '../util/format'
 import { isBusy, isRecording, kindOf } from '../util/status'
 import { useRealtimeStore } from '../stores/realtime'
+import { useRecordingStore } from '../stores/recording'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import { isNative } from '../util/platform'
@@ -129,6 +137,8 @@ const router = useRouter()
 const library = useLibraryStore()
 const auth = useAuthStore()
 const realtime = useRealtimeStore()
+const recording = useRecordingStore()
+const isThisPhone = computed(() => recording.active && String(recording.sessionId) === String(props.id))
 const settings = useSettingsStore()
 // the server gives addresses like /api/media/...: on the phone they need the server in front
 const abs = (u) => (u && u.startsWith('/') && isNative() ? `${settings.server}${u}` : u)
