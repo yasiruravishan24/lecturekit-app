@@ -35,3 +35,13 @@ export const exportMarkdown = (id) => http.get(`/sessions/${id}/export.md`, { re
 export const exportPdf = (id) => http.get(`/sessions/${id}/export.pdf`, { responseType: 'blob' }).then((r) => r.data)
 export const makeReplay = (id) => data(http.post(`/sessions/${id}/replay`))
 export const listShots = (id) => data(http.get(`/sessions/${id}/shots`))
+
+// recordings made earlier: one lecture in one or more files (the server joins them in this order), with optional slides. Each is { name, blob }
+export function uploadFiles(id, recordings, slides = [], onProgress) {
+  const form = new FormData()
+  recordings.forEach((r) => form.append('recording', r.blob, r.name))
+  slides.forEach((s) => form.append('slides', s.blob, s.name))
+  return data(http.post(`/sessions/${id}/upload`, form, {
+    onUploadProgress: (e) => onProgress && e.total && onProgress(Math.round((e.loaded / e.total) * 100)),
+  }))
+}

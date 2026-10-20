@@ -71,6 +71,7 @@ const c = computed(() => library.counts)
 
 const overview = computed(() => [
   { title: 'Record a lecture', sub: 'Sound only, or with the camera', icon: 'center_focus_strong', color: '#c10015', to: '/capture' },
+  { title: 'Upload a recording', sub: 'Make notes from a file on your phone', icon: 'upload_file', color: '#7b1fa2', to: '/upload' },
   { title: 'My courses', sub: `${plural(c.value.courses, 'course')} · ${plural(c.value.modules, 'module')}`, icon: 'folder_open', color: '#1976d2', to: '/courses' },
   latestReady.value
     ? { title: 'Latest notes', sub: latestReady.value.title, icon: 'description', color: '#e08a00', to: `/sessions/${latestReady.value.id}` }

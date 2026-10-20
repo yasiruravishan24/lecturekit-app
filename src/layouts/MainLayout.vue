@@ -47,6 +47,7 @@ const pageTitle = ref('')
 const title = computed(() => pageTitle.value || route.meta.title || 'Lecture Assistant')
 watch(() => route.fullPath, () => { pageTitle.value = '' })
 watch(() => recording.phase, (p) => { if (p === 'idle') recording.checkUnsent().catch(() => {}) })
+
 const goBack = () => (window.history.length > 1 ? router.back() : router.replace('/'))
 
 // one WebSocket tells the app what changes (the extension, the web app, another phone): lists and notifications update by themselves

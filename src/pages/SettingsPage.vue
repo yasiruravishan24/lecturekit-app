@@ -31,13 +31,6 @@
       </q-item>
     </q-card>
 
-    <!-- password: only for an account that logs in with a password -->
-    <q-card v-if="auth.user && auth.user.email_login" flat class="lk-card lk-pad q-mb-md">
-      <div class="lk-label q-mb-xs">Password</div>
-      <div class="lk-meta q-mb-md">Change the password you use to log in with your email.</div>
-      <q-btn outline no-caps color="primary" icon="lock_reset" label="Change password" class="full-width" @click="pwOpen = true" />
-    </q-card>
-
     <!-- legal -->
     <q-card flat class="lk-card q-mb-md">
       <div class="lk-label lk-pad q-pb-none">Legal</div>
@@ -61,14 +54,26 @@
       <div class="lk-meta">Your recordings are kept for replay until you delete the lecture. Delete lectures you no longer need to free space.</div>
     </q-card>
 
-    <q-btn outline no-caps color="primary" class="full-width q-mb-md" icon="logout" label="Log out" @click="logout" />
-
-    <!-- danger zone -->
-    <q-card flat class="lk-card lk-pad lk-danger">
-      <div class="lk-label q-mb-sm text-negative">Danger zone</div>
-      <div class="lk-meta q-mb-md"><b>Delete account</b><br>Removes your courses, lectures, recordings, notes and quizzes for good.</div>
-      <q-btn outline no-caps color="negative" icon="delete_forever" label="Delete account" class="full-width" @click="confirmDelete" />
+    <!-- manage account: password and deleting the account -->
+    <q-card flat class="lk-card q-mb-md lk-manage">
+      <q-expansion-item icon="manage_accounts" label="Manage account" caption="Password and deleting your account" header-class="lk-manage-head">
+        <q-separator />
+        <q-list>
+          <q-item v-if="auth.user && auth.user.email_login" clickable @click="pwOpen = true">
+            <q-item-section avatar><q-icon name="lock_reset" color="primary" /></q-item-section>
+            <q-item-section><q-item-label>Change password</q-item-label><q-item-label caption>The password you use to log in with your email</q-item-label></q-item-section>
+            <q-item-section side><q-icon name="chevron_right" /></q-item-section>
+          </q-item>
+          <q-separator v-if="auth.user && auth.user.email_login" />
+          <q-item clickable @click="confirmDelete">
+            <q-item-section avatar><q-icon name="delete_forever" color="negative" /></q-item-section>
+            <q-item-section><q-item-label class="text-negative">Delete account</q-item-label><q-item-label caption>Removes your courses, lectures, recordings, notes and quizzes for good</q-item-label></q-item-section>
+          </q-item>
+        </q-list>
+      </q-expansion-item>
     </q-card>
+
+    <q-btn outline no-caps color="primary" class="full-width q-mb-md" icon="logout" label="Log out" @click="logout" />
 
     <q-dialog v-model="pwOpen" persistent @hide="resetPw">
       <q-card class="lk-dialog">
@@ -175,6 +180,6 @@ function confirmDelete() {
 .lk-facts > div { background: var(--lk-surface-2); border-radius: 12px; padding: 10px 4px; text-align: center; display: flex; flex-direction: column; }
 .lk-facts b { font-size: 20px; font-weight: 500; }
 .lk-facts span { font-size: 12px; color: var(--lk-text-2); }
-.lk-danger { border-color: rgba(193, 0, 21, 0.35) !important; }
+.lk-manage :deep(.lk-manage-head) { min-height: 60px; font-weight: 500; }
 .lk-dialog { width: 100%; max-width: 420px; }
 </style>

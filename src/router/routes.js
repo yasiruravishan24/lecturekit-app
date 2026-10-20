@@ -9,6 +9,7 @@ const routes = [
       { path: 'courses', name: 'courses', component: () => import('@/pages/HomePage.vue'), meta: { title: 'My courses', tab: 'courses' } },
       { path: 'settings', name: 'settings', component: () => import('@/pages/SettingsPage.vue'), meta: { title: 'Settings', tab: 'settings' } },
       { path: 'capture', name: 'capture', component: () => import('@/pages/CapturePage.vue'), meta: { title: 'Record a lecture', tab: 'capture' } },
+      { path: 'upload', name: 'upload', component: () => import('@/pages/UploadPage.vue'), meta: { title: 'Upload a recording', back: true } },
       { path: 'modules/:id', name: 'module', component: () => import('@/pages/ModulePage.vue'), props: true, meta: { title: 'Module', back: true } },
       { path: 'sessions/:id', name: 'session', component: () => import('@/pages/SessionPage.vue'), props: true, meta: { title: 'Lecture', back: true } },
       { path: 'quiz/:id', name: 'quiz', component: () => import('@/pages/QuizPage.vue'), props: true, meta: { title: 'Quiz', back: true } },

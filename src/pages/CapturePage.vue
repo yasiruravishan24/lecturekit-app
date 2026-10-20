@@ -4,8 +4,8 @@
     <template v-if="rec.phase === 'idle'">
       <div v-if="error" class="lk-error" role="alert">{{ error }}</div>
       <div v-if="library.loaded && !options.length" class="lk-info">You need a course and a module first. Add them on the My courses screen.</div>
-      <q-select v-model="courseId" :options="courseOptions" emit-value map-options outlined label="Course" class="q-mb-md" behavior="menu" popup-content-class="lk-pick" :disable="!courseOptions.length" />
-      <q-select v-model="moduleId" :options="moduleOptions" emit-value map-options outlined label="Module" class="q-mb-md" behavior="menu" popup-content-class="lk-pick" :disable="!moduleOptions.length" />
+      <pick-field v-model="courseId" :options="courseOptions" label="Course" class="q-mb-md" :disable="!courseOptions.length" />
+      <pick-field v-model="moduleId" :options="moduleOptions" label="Module" class="q-mb-md" :disable="!moduleOptions.length" />
       <div v-if="courseId && !moduleOptions.length" class="lk-meta q-mb-md">This course has no module yet. Add one on the Courses screen.</div>
 
       <q-input v-model="title" outlined label="Lecture title" maxlength="160" class="q-mb-md" />
@@ -31,6 +31,7 @@
         <template v-else> Record only where the lecturer agrees. Keep the phone near the lecturer; you can lock the screen while it records.</template>
       </div>
       <q-btn unelevated color="negative" size="lg" no-caps :icon="camera ? 'videocam' : 'center_focus_strong'" label="Start recording" class="full-width" :loading="starting" :disable="!moduleId" @click="start" />
+      <div class="text-center q-mt-lg"><span class="lk-meta">Already have a recording?</span> <router-link :to="{ path: '/upload', query: moduleId ? { module: moduleId } : {} }" class="lk-link">Upload it</router-link></div>
     </template>
 
     <!-- recording -->
@@ -97,6 +98,7 @@
 </template>
 
 <script setup>
+import PickField from '../components/PickField.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'

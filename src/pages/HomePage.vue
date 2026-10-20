@@ -9,11 +9,10 @@
       <q-btn unelevated color="primary" no-caps icon="add" label="Add a course" @click="addCourse" />
     </div>
 
-    <router-link v-if="library.courses.length" to="/capture" class="lk-hero">
-      <span class="lk-hero-icon"><q-icon name="center_focus_strong" size="26px" /></span>
-      <span class="col"><div class="lk-hero-title">Record a lecture</div><div class="lk-hero-sub">Sound only, or with the camera</div></span>
-      <q-icon name="chevron_right" size="26px" />
-    </router-link>
+    <div v-if="library.courses.length" class="lk-actions">
+      <router-link to="/capture" class="lk-act cap"><span class="lk-act-icon"><q-icon name="center_focus_strong" size="26px" /></span><span class="lk-act-title">Capture</span><span class="lk-act-sub">Record a lecture, sound or camera</span></router-link>
+      <router-link to="/upload" class="lk-act up"><span class="lk-act-icon"><q-icon name="upload_file" size="26px" /></span><span class="lk-act-title">Upload</span><span class="lk-act-sub">Use a recording from your phone</span></router-link>
+    </div>
 
     <template v-if="recent.length">
       <div class="lk-label q-mb-sm">Recent lectures</div>
@@ -92,6 +91,13 @@ defineExpose({ addCourse })
 </script>
 
 <style scoped>
+.lk-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.lk-act { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: 16px; text-decoration: none; color: #fff; min-height: 128px; box-shadow: 0 6px 16px rgba(25, 118, 210, 0.25); }
+.lk-act.cap { background: linear-gradient(135deg, #1565c0, #2196f3); }
+.lk-act.up { background: linear-gradient(135deg, #6a1b9a, #9c27b0); box-shadow: 0 6px 16px rgba(106, 27, 154, 0.25); }
+.lk-act-icon { width: 44px; height: 44px; border-radius: 50%; background: rgba(255, 255, 255, 0.22); display: grid; place-items: center; margin-bottom: 8px; }
+.lk-act-title { font-size: 17px; font-weight: 600; }
+.lk-act-sub { font-size: 12.5px; opacity: 0.88; line-height: 1.3; }
 .lk-empty { text-align: center; padding: 28px 16px; }
 .lk-count { background: var(--lk-tint); color: var(--lk-link); border-radius: 999px; padding: 0 10px; font-size: 13px; }
 </style>

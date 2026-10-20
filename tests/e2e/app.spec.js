@@ -1,6 +1,6 @@
 // The app in a browser (fake microphone), against the real local server. The native recorder is replaced by its browser version.
 import { test, expect } from '@playwright/test'
-import { api, loginAs, makeSession, makeUser, PASSWORD } from './helpers.js'
+import { api, loginAs, makeSession, makeUser, PASSWORD, sample } from './helpers.js'
 
 test('log in with a wrong and then the right password', async ({ page }) => {
   const user = await makeUser('m1')
@@ -96,7 +96,8 @@ test('change the password in Settings', async ({ page }) => {
   const user = await makeUser('m5')
   await loginAs(page, user)
   await page.goto('/#/settings')
-  await page.getByRole('button', { name: 'Change password' }).click()
+  await page.getByText('Manage account', { exact: true }).click()
+  await page.getByText('The password you use to log in with your email').click()
   await page.getByLabel('Current password').fill('this is not it')
   await page.getByLabel('New password', { exact: true }).fill('a brand new secret')
   await page.getByLabel('New password again').fill('a brand new secret')
@@ -107,4 +108,29 @@ test('change the password in Settings', async ({ page }) => {
   await expect(page.getByText('Your password was changed.')).toBeVisible()
   const again = await fetch('https://localhost:8443/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email, password: 'a brand new secret' }) })
   expect(again.status).toBe(200)
+})
+
+test('upload a recording and slides from the phone: the lecture is created and sent', async ({ page }) => {
+  const user = await makeUser('m6')
+  const { module } = await makeSession(user, 'x')
+  await loginAs(page, user)
+  let processed = false
+  await page.route('**/api/sessions/*/process', (r) => { processed = true; r.fulfill({ json: { job_id: 997 } }) })        // no real notes: only the upload is tested
+  await page.goto(`/#/upload?module=${module.id}`)
+  await page.getByLabel('Lecture title').fill('Uploaded lecture')
+  const rec = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Choose a file' }).click()
+  await (await rec).setFiles(sample('sample-recording.m4a'))
+  await expect(page.getByText('sample-recording.m4a')).toBeVisible()
+  const sl = page.waitForEvent('filechooser')
+  await page.getByText('Add slides to improve the notes').click()
+  await (await sl).setFiles(sample('sample-slides.pdf'))
+  await expect(page.getByText('sample-slides.pdf')).toBeVisible()
+  await page.getByRole('button', { name: 'Create notes and quiz' }).click()
+  await expect(page).toHaveURL(/#\/sessions\/\d+/)
+  const id = Number(page.url().match(/sessions\/(\d+)/)[1])
+  const s = await api('GET', `/sessions/${id}`, user)
+  expect(s.json.title).toBe('Uploaded lecture')
+  expect(s.json.files.map((f) => f.kind).sort()).toEqual(['recording', 'slides'])
+  expect(processed).toBe(true)
 })

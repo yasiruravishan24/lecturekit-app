@@ -101,9 +101,9 @@
         <div v-if="$q.screen.lt.lg && shortView === 'cards'" class="lk-deck lk-no-print">
           <template v-if="deck.length">
             <div v-touch-swipe.horizontal="onCardSwipe" class="lk-flash" :class="{ shown: revealed }" role="button" tabindex="0" @click="revealed = !revealed" @keyup.enter="revealed = !revealed">
-              <div class="lk-flash-no">Point {{ deck[0] + 1 }} of {{ notes.short_notes.length }}</div>
-              <div v-if="revealed" class="lk-flash-text">{{ notes.short_notes[deck[0]] }}</div>
-              <div v-else class="lk-flash-hide"><q-icon name="touch_app" size="34px" /><span>Try to remember this point, then tap to check</span></div>
+                <div class="lk-flash-no">Point {{ deck[0] + 1 }} of {{ notes.short_notes.length }}</div>
+                <div v-if="revealed" class="lk-flash-text">{{ notes.short_notes[deck[0]] }}</div>
+                <div v-else class="lk-flash-hide"><q-icon name="touch_app" size="34px" /><span>Try to remember this point, then tap to check</span></div>
             </div>
             <div class="lk-flash-actions">
               <q-btn outline no-caps color="warning" text-color="grey-8" icon="replay" label="Again" @click="again" />

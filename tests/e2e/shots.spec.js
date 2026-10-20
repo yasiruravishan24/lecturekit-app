@@ -13,10 +13,10 @@ test('screens', async ({ page }) => {
   await loginAs(page, user)
   const go = async (u) => { await page.goto('about:blank'); await page.goto(u) }
   await go('/#/'); await snap('3-home')
-  await go('/#/courses'); await snap('3b-courses')
-  await go(`/#/capture?module=${module.id}`); await snap('4-capture')
+  await go('/#/courses'); await snap('3b-courses'); await go('/#/upload'); await snap('3c-upload')
+  await go(`/#/capture?module=${module.id}`); await snap('4-capture'); await page.locator('.lk-pickfield').first().click(); await snap('4b-pick'); await page.keyboard.press('Escape')
   await go(`/#/modules/${module.id}`); await snap('5-module')
-  await go('/#/settings'); await snap('6-settings'); await page.getByRole('button', { name: 'Change password' }).click(); await snap('6b-password')
+  await go('/#/settings'); await snap('6-settings'); await page.getByText('Manage account', { exact: true }).click(); await snap('6b-manage')
   await go('/#/notifications'); await snap('7-notifications')
   await upload(user, session.id, [['lecture.m4a', readFileSync(sample('sample-recording.m4a'))]]).catch(() => {})
   await go(`/#/sessions/${session.id}`); await snap('8-session')

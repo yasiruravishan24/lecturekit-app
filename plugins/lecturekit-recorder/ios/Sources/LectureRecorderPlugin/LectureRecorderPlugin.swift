@@ -20,12 +20,14 @@ public class LectureRecorderPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "freeSpace", returnType: CAPPluginReturnPromise)
     ]
 
-    /// The web view is the whole app, so its thin scroll indicator is hidden (the page still scrolls).
+    /// The web view is the whole app: its thin scroll indicator is hidden (the page still scrolls), and swiping from the left edge goes
+    /// back one screen, as in every iPhone app (the pages are entries of the web view's history).
     override public func load() {
         DispatchQueue.main.async { [weak self] in
-            guard let scroll = self?.bridge?.webView?.scrollView else { return }
-            scroll.showsVerticalScrollIndicator = false
-            scroll.showsHorizontalScrollIndicator = false
+            guard let web = self?.bridge?.webView else { return }
+            web.allowsBackForwardNavigationGestures = true
+            web.scrollView.showsVerticalScrollIndicator = false
+            web.scrollView.showsHorizontalScrollIndicator = false
         }
     }
 

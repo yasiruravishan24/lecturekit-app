@@ -90,8 +90,10 @@
             <div v-if="cur.check.length" class="lk-deeper-block">
               <div class="lk-label q-mb-xs" style="color: var(--lk-warning-text, #b26a00)">Check this</div>
               <div v-for="(c, i) in cur.check" :key="i" class="lk-check">
-                <div class="lk-check-claim"><q-icon name="rule" size="18px" /> The notes say: <i>{{ c.claim }}</i></div>
-                <div>{{ c.why }}</div>
+                <div class="lk-check-head"><q-icon name="rule" size="18px" /> The notes say</div>
+                <blockquote class="lk-check-claim">{{ c.claim }}</blockquote>
+                <div class="lk-check-head q-mt-sm"><q-icon name="lightbulb" size="18px" /> Why it may need a second look</div>
+                <div class="lk-check-why">{{ c.why }}</div>
               </div>
             </div>
             <div v-if="cur.links.length" class="lk-deeper-block">
@@ -167,8 +169,10 @@ const stageText = computed(() => {
 .lk-summary p { margin: 4px 0 0; line-height: 1.65; }
 .lk-deeper-block { margin-bottom: 18px; }
 .lk-deeper-list { margin: 0; padding-left: 20px; line-height: 1.7; }
-.lk-check { border: 1px solid rgba(242, 192, 55, 0.7); background: rgba(242, 192, 55, 0.12); border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; line-height: 1.55; }
-.lk-check-claim { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; color: var(--lk-text-2); }
+.lk-check { border: 1px solid rgba(242, 192, 55, 0.7); background: rgba(242, 192, 55, 0.12); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; line-height: 1.55; }
+.lk-check-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lk-text-2); }
+.lk-check-claim { margin: 6px 0 0; padding: 8px 12px; border-left: 3px solid var(--lk-warning); background: var(--lk-surface); border-radius: 0 8px 8px 0; font-style: italic; line-height: 1.5; }
+.lk-check-why { margin-top: 6px; line-height: 1.55; }
 .lk-link-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--lk-link); text-decoration: none; }
 .lk-link-row:hover { background: var(--lk-tint); }
 .lk-link-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

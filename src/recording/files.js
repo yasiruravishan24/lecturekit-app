@@ -15,14 +15,22 @@ export async function readBlob(item) {
   return res.blob()
 }
 
+// File types the server accepts (the same lists as the server and the web app)
+export const RECORDING_TYPES = ['.mp4', '.mov', '.m4a', '.mp3', '.wav', '.webm', '.mkv', '.aac', '.ogg']
+export const SLIDE_EXTENSIONS = ['.pdf', '.pptx', '.ppt', '.pps', '.ppsx', '.odp', '.docx', '.doc', '.odt', '.rtf']
+export const extOf = (name) => { const i = String(name).lastIndexOf('.'); return i < 0 ? '' : String(name).slice(i).toLowerCase() }
+
 // the Files picker (native) or a file dialog (browser). Returns [{ name, size, path?, blob? }]
-export async function pickSlides() {
+export const pickSlides = () => pickFiles({ types: SLIDE_TYPES, accept: '.pdf,.ppt,.pptx,.doc,.docx' })
+export const pickRecordings = () => pickFiles({ types: ['audio/*', 'video/*'], accept: RECORDING_TYPES.join(',') })
+
+async function pickFiles({ types, accept }) {
   if (isNative()) {
-    const r = await FilePicker.pickFiles({ types: SLIDE_TYPES, limit: 0 })
+    const r = await FilePicker.pickFiles({ types, limit: 0 })
     return r.files.map((f) => ({ name: f.name, size: f.size, path: f.path }))
   }
   return new Promise((resolve) => {
-    const input = Object.assign(document.createElement('input'), { type: 'file', multiple: true, accept: '.pdf,.ppt,.pptx,.doc,.docx' })
+    const input = Object.assign(document.createElement('input'), { type: 'file', multiple: true, accept })
     input.onchange = () => resolve([...input.files].map((f) => ({ name: f.name, size: f.size, blob: f })))
     input.click()
   })
