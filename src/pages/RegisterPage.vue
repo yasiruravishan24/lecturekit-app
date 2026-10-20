@@ -1,21 +1,22 @@
 <template>
-  <q-card flat class="lk-card lk-auth-card">
+  <div>
     <form @submit.prevent="submit" novalidate>
-      <h1 class="lk-title">Create an account</h1>
+      <h1 class="text-h5 q-mt-none q-mb-md" style="font-weight: 400">Create an account</h1>
       <div v-if="error" class="lk-error" role="alert">{{ error }}</div>
-      <q-input v-model="fullName" label="Full name" outlined autocomplete="name" class="q-mb-sm" :error="!!errors.fullName" :error-message="errors.fullName" :disable="busy" />
-      <q-input v-model="email" type="email" label="Email" outlined autocomplete="email" inputmode="email" autocapitalize="off" class="q-mb-sm" :error="!!errors.email" :error-message="errors.email" :disable="busy" />
+      <q-input v-model="fullName" label="Full name" outlined autocomplete="name" class="q-mb-sm" :error="!!errors.fullName" :error-message="errors.fullName" :disable="busy"><template #prepend><q-icon name="person" /></template></q-input>
+      <q-input v-model="email" type="email" label="Email" outlined autocomplete="email" inputmode="email" autocapitalize="off" class="q-mb-sm" :error="!!errors.email" :error-message="errors.email" :disable="busy"><template #prepend><q-icon name="mail" /></template></q-input>
       <q-input v-model="password" :type="show ? 'text' : 'password'" label="Password" outlined autocomplete="new-password" class="q-mb-sm" :error="!!errors.password" :error-message="errors.password" hint="At least 8 characters" :disable="busy">
+        <template #prepend><q-icon name="lock" /></template>
         <template #append><q-icon :name="show ? 'visibility_off' : 'visibility'" class="cursor-pointer" aria-label="Show password" @click="show = !show" /></template>
       </q-input>
       <q-checkbox v-model="terms" class="q-mt-sm" :disable="busy">
-        <span>I agree to the <a :href="`${site}/terms`" target="_blank" rel="noopener" class="text-primary" @click.stop>Terms &amp; Conditions</a> and the <a :href="`${site}/privacy`" target="_blank" rel="noopener" class="text-primary" @click.stop>Privacy Policy</a></span>
+        <span>I agree to the <a :href="`${site}/terms`" target="_blank" rel="noopener" class="lk-link" @click.stop>Terms &amp; Conditions</a> and the <a :href="`${site}/privacy`" target="_blank" rel="noopener" class="lk-link" @click.stop>Privacy Policy</a></span>
       </q-checkbox>
       <div v-if="errors.terms" class="text-negative text-caption q-mb-sm">{{ errors.terms }}</div>
-      <q-btn type="submit" unelevated color="primary" size="lg" no-caps label="Create account" class="full-width q-mt-md" :loading="busy" />
-      <div class="text-center q-mt-md">Already have an account? <router-link to="/login" class="text-primary">Log in</router-link></div>
+      <q-btn type="submit" unelevated color="primary" size="lg" no-caps label="Create account" class="full-width q-mt-md" style="height: 44px" :loading="busy" />
+      <div class="text-center q-mt-md lk-meta">Already have an account? <router-link to="/login" class="lk-link">Log in</router-link></div>
     </form>
-  </q-card>
+  </div>
 </template>
 
 <script setup>
@@ -66,5 +67,4 @@ async function submit() {
 </script>
 
 <style scoped>
-.lk-auth-card { padding: 22px; }
 </style>

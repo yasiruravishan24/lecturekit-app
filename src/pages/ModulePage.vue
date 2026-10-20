@@ -13,7 +13,7 @@
         </q-list>
         <div v-else class="text-center q-pa-lg lk-meta">No lectures yet. Record the first one.</div>
       </q-card>
-      <q-page-sticky position="bottom-right" :offset="[18, 18]"><q-btn fab color="primary" icon="mic" aria-label="Record a lecture" :to="{ path: '/capture', query: { module: module.id } }" /></q-page-sticky>
+      <q-page-sticky position="bottom-right" :offset="[18, 18]"><q-btn fab color="primary" icon="center_focus_strong" aria-label="Record a lecture" :to="{ path: '/capture', query: { module: module.id } }" /></q-page-sticky>
     </template>
     <div v-else-if="library.loaded" class="lk-card q-pa-lg text-center">This module was not found.</div>
     <q-inner-loading :showing="library.loading && !library.loaded" />

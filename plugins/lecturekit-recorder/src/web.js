@@ -1,6 +1,7 @@
 import { WebPlugin } from '@capacitor/core'
 
-// The browser version: one MediaRecorder per part, with the same overlap rules as the native one. For development and tests only.
+// The browser version: one MediaRecorder per part, with the same overlap rules as the native one. The phone app also uses it for the
+// camera mode (picture and sound), because the native recorder is sound only. start({ video: true, facing: 'environment' }) records video parts.
 const active = (t, L, o) => {
   const base = Math.floor(t / L)
   return [base, base + 1].filter((k) => k >= 0 && Math.max(0, k * L - o) <= t && t < (k + 1) * L)
@@ -17,14 +18,35 @@ export class LectureRecorderWeb extends WebPlugin {
 
   async freeSpace() { return { bytes: 10 * 1024 * 1024 * 1024 } }
 
-  async start({ chunkSeconds = 300, overlap = 5, folder = 'recording' } = {}) {
+  // the camera picture before recording starts (and the same stream is then recorded). facing: 'environment' (back) or 'user' (front)
+  async preview(facing = 'environment') {
+    this.stopPreview()
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 10, max: 15 } },
+    })
+    this.pre = stream
+    return stream
+  }
+
+  stopPreview() {
+    if (this.pre) this.pre.getTracks().forEach((t) => t.stop())
+    this.pre = null
+  }
+
+  stream() { return (this.r && this.r.stream) || this.pre || null }
+
+  async start({ chunkSeconds = 300, overlap = 5, folder = 'recording', video = false, facing = 'environment' } = {}) {
     if (this.r) throw new Error('A recording is already running')
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    let stream = this.pre
+    this.pre = null
+    if (!video && stream) { stream.getTracks().forEach((t) => t.stop()); stream = null }
+    if (!stream) stream = video ? await this.preview(facing).then((s) => { this.pre = null; return s }) : await navigator.mediaDevices.getUserMedia({ audio: true })
     const ctx = new AudioContext()
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 1024
     ctx.createMediaStreamSource(stream).connect(analyser)
-    const r = { stream, ctx, analyser, L: chunkSeconds, o: overlap, t: 0, last: performance.now(), paused: false, recorders: new Map(), started: new Set(), saved: [], folder }
+    const r = { stream, ctx, analyser, L: chunkSeconds, o: overlap, t: 0, last: performance.now(), paused: false, recorders: new Map(), started: new Set(), saved: [], folder, video }
     this.r = r
     r.timer = setInterval(() => this.tick(), 200)
     this.tick()
@@ -49,12 +71,13 @@ export class LectureRecorderWeb extends WebPlugin {
 
   open(k) {
     const r = this.r
-    const mr = new MediaRecorder(r.stream)
+    const mime = r.video ? ['video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) : ''
+    const mr = new MediaRecorder(r.stream, r.video ? { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: 500000, audioBitsPerSecond: 64000 } : undefined)      // about 4 MB a minute
     const parts = []
     const startedAt = r.t
     mr.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data) }
     mr.onstop = () => {
-      const blob = new Blob(parts, { type: mr.mimeType || 'audio/webm' })
+      const blob = new Blob(parts, { type: mr.mimeType || (r.video ? 'video/webm' : 'audio/webm') })
       const part = { index: k, path: null, url: URL.createObjectURL(blob), seconds: Math.max(0, r.t - startedAt), type: blob.type }
       r.saved.push(part)
       this.notifyListeners('chunk', part)

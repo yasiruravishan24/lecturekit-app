@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Lecture Assistant uses the camera only in camera mode, to record the board or screen of the lecture you choose. It records only while you have pressed Start.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Lecture Assistant records the lecture you choose, so it can be turned into notes. It records only while you have pressed Start.</string>
 	<key>UIApplicationSceneManifest</key>

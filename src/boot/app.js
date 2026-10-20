@@ -2,6 +2,7 @@ import { defineBoot } from '#q-app'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import { setRouter } from '../stores/realtime'
+import { applyTheme, useUiStore } from '../stores/ui'
 
 // Before the first page: read the server address and the login from the phone, and tell the API client how to find them.
 export default defineBoot(async ({ app, router }) => {
@@ -13,6 +14,7 @@ export default defineBoot(async ({ app, router }) => {
     router.onError((err) => show(`router: ${err && (err.stack || err.message)}`))
     router.afterEach((to) => show(`route ${to.fullPath} -> ${to.matched.map((m) => m.path || '(empty)').join(' > ')}`))
   }
+  applyTheme(useUiStore().theme)                              // light, dark, or follow the phone: the same choice as on the web
   const settings = useSettingsStore()
   const auth = useAuthStore()
   await settings.load()

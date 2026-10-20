@@ -20,6 +20,15 @@ public class LectureRecorderPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "freeSpace", returnType: CAPPluginReturnPromise)
     ]
 
+    /// The web view is the whole app, so its thin scroll indicator is hidden (the page still scrolls).
+    override public func load() {
+        DispatchQueue.main.async { [weak self] in
+            guard let scroll = self?.bridge?.webView?.scrollView else { return }
+            scroll.showsVerticalScrollIndicator = false
+            scroll.showsHorizontalScrollIndicator = false
+        }
+    }
+
     private final class Writer {
         let index: Int
         let url: URL

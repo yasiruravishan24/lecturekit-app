@@ -31,3 +31,7 @@ export function uploadWhole(id, recording, slides = [], onProgress) {
     onUploadProgress: (e) => onProgress && e.total && onProgress(Math.round((e.loaded / e.total) * 100)),
   }))
 }
+export const exportMarkdown = (id) => http.get(`/sessions/${id}/export.md`, { responseType: 'blob' }).then((r) => r.data)
+export const exportPdf = (id) => http.get(`/sessions/${id}/export.pdf`, { responseType: 'blob' }).then((r) => r.data)
+export const makeReplay = (id) => data(http.post(`/sessions/${id}/replay`))
+export const listShots = (id) => data(http.get(`/sessions/${id}/shots`))

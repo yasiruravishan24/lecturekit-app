@@ -2,18 +2,36 @@
   <q-layout view="hHh lpR fFf">
     <q-page-container>
       <q-page class="lk-auth">
-        <div class="lk-auth-inner">
-          <div class="lk-brand"><span class="lk-brand-icon"><q-icon name="school" size="34px" /></span><span>Lecture Assistant</span></div>
-          <router-view />
+        <div class="lk-ambient" aria-hidden="true"><span /><span /><span /></div>
+        <q-btn round flat class="lk-theme-btn" :icon="isDark ? 'light_mode' : 'dark_mode'" :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'" @click="ui.toggleDark()" />
+        <div class="lk-auth-wrap">
+          <div class="lk-halo" aria-hidden="true" />
+          <q-card flat bordered class="lk-auth-card lk-card">
+            <q-card-section class="q-pb-none">
+              <div class="lk-logo text-primary">
+                <span class="lk-logo-badge"><q-icon name="school" size="26px" /></span>
+                <span style="font-size: 22px; font-weight: 500; letter-spacing: -0.01em">Lecture Assistant</span>
+              </div>
+            </q-card-section>
+            <q-card-section><router-view /></q-card-section>
+          </q-card>
         </div>
       </q-page>
     </q-page-container>
   </q-layout>
 </template>
 
+<script setup>
+import { computed } from 'vue'
+import { useQuasar } from 'quasar'
+import { useUiStore } from '../stores/ui'
+
+const $q = useQuasar()
+const ui = useUiStore()
+const isDark = computed(() => $q.dark.isActive)
+</script>
+
 <style scoped>
-.lk-auth { display: flex; align-items: center; justify-content: center; padding: calc(24px + var(--lk-safe-top)) 20px calc(24px + var(--lk-safe-bottom)); background: linear-gradient(160deg, #1259b5, #1976d2 55%, #2a9df4); min-height: 100vh; }
-.lk-auth-inner { width: 100%; max-width: 420px; }
-.lk-brand { display: flex; align-items: center; justify-content: center; gap: 12px; color: #fff; font-size: 24px; font-weight: 500; margin-bottom: 22px; }
-.lk-brand-icon { width: 52px; height: 52px; border-radius: 16px; background: rgba(255, 255, 255, 0.18); display: grid; place-items: center; }
+.lk-auth-card :deep(.q-card__section) { padding: 20px; }
+.lk-auth-card :deep(.q-card__section.q-pb-none) { padding-bottom: 0; }
 </style>

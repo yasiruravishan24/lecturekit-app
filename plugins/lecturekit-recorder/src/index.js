@@ -12,3 +12,6 @@ import { registerPlugin } from '@capacitor/core'
 export const LectureRecorder = registerPlugin('LectureRecorder', {
   web: () => import('./web.js').then((m) => new m.LectureRecorderWeb()),
 })
+
+// the browser version, used directly for the camera mode (the native recorder is sound only)
+export { LectureRecorderWeb } from './web.js'

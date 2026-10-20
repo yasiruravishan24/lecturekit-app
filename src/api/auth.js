@@ -9,3 +9,4 @@ export const googleLogin = (idToken, acceptTerms) => data(http.post('/auth/googl
 export const me = () => data(http.get('/auth/me'))
 export const deleteAccount = () => http.delete('/auth/me')
 export const getUsage = () => data(http.get('/auth/usage'))
+export const changePassword = (current_password, new_password) => data(http.post('/auth/change-password', { current_password, new_password }))

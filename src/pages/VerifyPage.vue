@@ -1,6 +1,6 @@
 <template>
-  <q-card flat class="lk-card lk-auth-card">
-    <h1 class="lk-title">Confirm your email</h1>
+  <div>
+    <h1 class="text-h5 q-mt-none q-mb-md" style="font-weight: 400">Confirm your email</h1>
     <p class="lk-meta">We sent a 6-digit code to <b>{{ email }}</b>. Enter it here.</p>
     <div v-if="info" class="lk-info" role="status">{{ info }}</div>
     <div v-if="error" class="lk-error" role="alert">{{ error }}</div>
@@ -8,7 +8,7 @@
              @update:model-value="(v) => (code = String(v).replace(/\D/g, ''))" @keyup.enter="confirm" />
     <q-btn unelevated color="primary" size="lg" no-caps label="Confirm" class="full-width q-mt-md" :loading="busy" :disable="code.length !== 6" @click="confirm" />
     <q-btn flat no-caps color="primary" class="full-width q-mt-sm" :label="wait > 0 ? `Send a new code (${wait} s)` : 'Send a new code'" :disable="wait > 0" @click="resend" />
-  </q-card>
+  </div>
 </template>
 
 <script setup>
@@ -72,6 +72,5 @@ onBeforeUnmount(() => clearInterval(timer))
 </script>
 
 <style scoped>
-.lk-auth-card { padding: 22px; }
 .lk-code :deep(input) { font-size: 24px; letter-spacing: 0.4em; text-align: center; }
 </style>

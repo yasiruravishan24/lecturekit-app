@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { Capacitor } from '@capacitor/core'
 import { Network } from '@capacitor/network'
 import { KeepAwake } from '@capacitor-community/keep-awake'
-import { LectureRecorder } from 'lecturekit-recorder'
+import { LectureRecorder, LectureRecorderWeb } from 'lecturekit-recorder'
 import * as library from '../api/library'
 import * as sessionsApi from '../api/sessions'
 import { friendly } from '../util/errors'
@@ -20,6 +20,9 @@ const META_KEY = 'lk_recording'
 const MIN_FREE_BYTES = 500 * 1024 * 1024
 
 let queue = null
+let cam = null          // the camera mode records picture and sound in the web view (the native recorder is sound only)
+const recorderFor = (camera) => (camera ? (cam = cam || new LectureRecorderWeb()) : LectureRecorder)
+export const cameraRecorder = () => recorderFor(true)
 let listeners = []
 let jobTimer = null
 
@@ -37,6 +40,7 @@ const diskStore = {
 
 export const useRecordingStore = defineStore('recording', {
   state: () => ({
+    camera: false,            // true: picture and sound (the screen must stay on); false: sound only (the screen may be locked)
     phase: 'idle',            // idle recording paused interrupted stopping sending processing done failed limit
     sessionId: null, title: '', moduleId: null,
     seconds: 0, level: -80, quietFor: 0,
@@ -45,6 +49,7 @@ export const useRecordingStore = defineStore('recording', {
     total: 0, jobId: null, job: null,
     sent: 0, pending: 0, waiting: null, retryIn: 0, paused401: false, fatal: null,
     error: '', notice: '',
+    unsent: null,             // a recording that was cut short (app closed, phone restarted): { sessionId, title, parts }
   }),
   getters: {
     active: (s) => ['recording', 'paused', 'interrupted'].includes(s.phase),
@@ -68,20 +73,22 @@ export const useRecordingStore = defineStore('recording', {
     },
     kick() { return this._queue().kick() },
 
+    _rec() { return recorderFor(this.camera) },
+
     async _listen() {
       this._unlisten()
       listeners = [
-        await LectureRecorder.addListener('chunk', (p) => this._onChunk(p)),
-        await LectureRecorder.addListener('level', (p) => this._onLevel(p)),
-        await LectureRecorder.addListener('state', (p) => this._onState(p)),
-        await LectureRecorder.addListener('error', (p) => { this.error = p.message }),
+        await this._rec().addListener('chunk', (p) => this._onChunk(p)),
+        await this._rec().addListener('level', (p) => this._onLevel(p)),
+        await this._rec().addListener('state', (p) => this._onState(p)),
+        await this._rec().addListener('error', (p) => { this.error = p.message }),
       ]
     },
     _unlisten() { listeners.forEach((l) => l.remove()); listeners = [] },
 
     async _onChunk(p) {
       if (this.sessionId == null) return
-      await diskStore.put({ sessionId: this.sessionId, index: p.index, path: p.path || null, url: p.url || null, name: `chunk_${String(p.index).padStart(5, '0')}.${p.path ? 'm4a' : 'webm'}`, seconds: p.seconds, state: 'pending', at: Date.now() })
+      await diskStore.put({ sessionId: this.sessionId, index: p.index, path: p.path || null, url: p.url || null, name: `chunk_${String(p.index).padStart(5, '0')}.${p.path ? 'm4a' : /mp4/.test(p.type || '') ? 'mp4' : 'webm'}`, seconds: p.seconds, state: 'pending', at: Date.now() })
       this.kick()
     },
     _onLevel(p) {
@@ -102,15 +109,16 @@ export const useRecordingStore = defineStore('recording', {
     },
 
     // ---- start ----
-    async start({ moduleId, title, slides = [] }) {
+    async start({ moduleId, title, slides = [], camera = false, facing = 'environment' }) {
+      this.camera = camera
       this.error = ''
       this.notice = ''
-      const perm = await LectureRecorder.checkPermission()
+      const perm = await this._rec().checkPermission()
       if (perm.status !== 'granted') {
-        const asked = await LectureRecorder.requestPermission()
+        const asked = await this._rec().requestPermission()
         if (asked.status !== 'granted') throw Object.assign(new Error('Microphone access is off. Turn it on for Lecture Assistant in the phone Settings.'), { code: 'mic_denied' })
       }
-      const { bytes } = await LectureRecorder.freeSpace()
+      const { bytes } = await this._rec().freeSpace()
       if (bytes < MIN_FREE_BYTES) throw new Error('There is not enough free space on this phone to record (about 500 MB is needed).')
       const session = await library.createSession(moduleId, title)
       let live
@@ -120,7 +128,7 @@ export const useRecordingStore = defineStore('recording', {
       Object.assign(this, { sessionId: session.id, title, moduleId, slides, seconds: 0, level: -80, quietFor: 0, chunkSeconds: live.chunk_seconds, overlap: live.overlap, total: 0, jobId: null, job: null, sent: 0, pending: 0 })
       await this._listen()
       try {
-        const r = await LectureRecorder.start({ chunkSeconds: live.chunk_seconds, overlap: live.overlap, folder: `s${session.id}` })
+        const r = await this._rec().start({ chunkSeconds: live.chunk_seconds, overlap: live.overlap, folder: `s${session.id}`, ...(camera ? { video: true, facing } : {}) })
         this.folder = r.folder
       } catch (e) {
         this._unlisten()
@@ -133,15 +141,15 @@ export const useRecordingStore = defineStore('recording', {
       this.phase = 'recording'
     },
 
-    async pause() { await LectureRecorder.pause(); this.phase = 'paused' },
-    async resume() { await LectureRecorder.resume(); this.phase = 'recording'; this.notice = '' },
+    async pause() { await this._rec().pause(); this.phase = 'paused' },
+    async resume() { await this._rec().resume(); this.phase = 'recording'; this.notice = '' },
 
     // ---- stop: send the rest, make the notes ----
     async stop() {
       this.phase = 'stopping'
       this.error = ''
       try {
-        const r = await LectureRecorder.stop()
+        const r = await this._rec().stop()
         KeepAwake.allowSleep().catch(() => {})
         this._unlisten()
         const plan = finalPlan(r.seconds, this.chunkSeconds, this.overlap)
@@ -215,12 +223,42 @@ export const useRecordingStore = defineStore('recording', {
     async reset() {
       clearTimeout(jobTimer)
       this._unlisten()
-      Object.assign(this, { phase: 'idle', sessionId: null, title: '', moduleId: null, seconds: 0, level: -80, slides: [], total: 0, jobId: null, job: null, error: '', notice: '' })
+      Object.assign(this, { phase: 'idle', camera: false, sessionId: null, title: '', moduleId: null, seconds: 0, level: -80, slides: [], total: 0, jobId: null, job: null, error: '', notice: '' })
       await prefs.remove(META_KEY)
     },
 
+    // ---- a recording that was never sent (the app was closed, the phone restarted) ----
+    async checkUnsent() {
+      if (this.phase !== 'idle') return
+      const meta = await prefs.getJson(META_KEY, null)
+      if (!meta) { this.unsent = null; return }
+      const items = (await diskStore.all()).filter((c) => c.sessionId === meta.sessionId && c.path)       // only parts saved as files can be sent again
+      if (!items.length) { await prefs.remove(META_KEY); this.unsent = null; return }
+      this.unsent = { ...meta, parts: items.length }
+    },
+
+    async sendUnsent() {
+      const u = this.unsent
+      if (!u) return
+      const items = (await diskStore.all()).filter((c) => c.sessionId === u.sessionId)
+      let received = []
+      try { received = (await sessionsApi.liveStatus(u.sessionId)).received || [] } catch { /* offline: the parts on the phone decide */ }
+      const last = Math.max(-1, ...received, ...items.map((c) => c.index))
+      Object.assign(this, { sessionId: u.sessionId, title: u.title, moduleId: u.moduleId, chunkSeconds: u.chunkSeconds, overlap: u.overlap, camera: false, total: last + 1, slides: [], jobId: null, job: null, error: '', notice: '', sent: 0, pending: 0, unsent: null })
+      await this.finish()
+    },
+
+    async discardUnsent() {
+      const u = this.unsent
+      if (!u) return
+      await diskStore.clearSession(u.sessionId)
+      await prefs.remove(META_KEY)
+      library.deleteSession(u.sessionId).catch(() => {})
+      this.unsent = null
+    },
+
     async discard() {                                                        // the person gives up this recording
-      if (this.active) { try { await LectureRecorder.stop() } catch { /* already stopped */ } }
+      if (this.active) { try { await this._rec().stop() } catch { /* already stopped */ } }
       KeepAwake.allowSleep().catch(() => {})
       const id = this.sessionId
       if (id) { await diskStore.clearSession(id); library.deleteSession(id).catch(() => {}) }

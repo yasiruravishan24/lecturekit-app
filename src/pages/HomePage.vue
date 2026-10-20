@@ -9,6 +9,29 @@
       <q-btn unelevated color="primary" no-caps icon="add" label="Add a course" @click="addCourse" />
     </div>
 
+    <router-link v-if="library.courses.length" to="/capture" class="lk-hero">
+      <span class="lk-hero-icon"><q-icon name="center_focus_strong" size="26px" /></span>
+      <span class="col"><div class="lk-hero-title">Record a lecture</div><div class="lk-hero-sub">Sound only, or with the camera</div></span>
+      <q-icon name="chevron_right" size="26px" />
+    </router-link>
+
+    <template v-if="recent.length">
+      <div class="lk-label q-mb-sm">Recent lectures</div>
+      <q-card flat class="lk-card q-mb-lg">
+        <q-list separator>
+          <q-item v-for="s in recent" :key="s.id" clickable :to="`/sessions/${s.id}`">
+            <q-item-section avatar><q-icon :name="kindOf(s).icon" color="primary" /></q-item-section>
+            <q-item-section>
+              <q-item-label>{{ s.title }}</q-item-label>
+              <q-item-label caption>{{ s.module_name }}</q-item-label>
+            </q-item-section>
+            <q-item-section side><status-chip :session="s" /></q-item-section>
+          </q-item>
+        </q-list>
+      </q-card>
+    </template>
+
+    <div v-if="library.courses.length" class="row items-center q-mb-xs"><div class="lk-label col">My courses</div><q-btn flat dense no-caps color="primary" icon="add" label="Add course" @click="addCourse" /></div>
     <q-card v-for="c in library.courses" :key="c.id" flat class="lk-card q-mb-md">
       <q-item clickable @click="toggle(c)" class="lk-course">
         <q-item-section avatar><q-icon name="folder" color="primary" size="30px" /></q-item-section>
@@ -31,25 +54,6 @@
       </template>
     </q-card>
 
-    <template v-if="recent.length">
-      <div class="lk-label q-mt-lg q-mb-sm">Recent sessions</div>
-      <q-card flat class="lk-card">
-        <q-list separator>
-          <q-item v-for="s in recent" :key="s.id" clickable :to="`/sessions/${s.id}`">
-            <q-item-section avatar><q-icon :name="kindOf(s).icon" color="primary" /></q-item-section>
-            <q-item-section>
-              <q-item-label>{{ s.title }}</q-item-label>
-              <q-item-label caption>{{ s.module_name }}</q-item-label>
-            </q-item-section>
-            <q-item-section side><status-chip :session="s" /></q-item-section>
-          </q-item>
-        </q-list>
-      </q-card>
-    </template>
-
-    <q-page-sticky position="bottom-right" :offset="[18, 18]">
-      <q-btn fab color="primary" icon="mic" aria-label="Record a lecture" to="/capture" />
-    </q-page-sticky>
     <q-inner-loading :showing="library.loading && !library.loaded" />
   </q-page>
 </template>

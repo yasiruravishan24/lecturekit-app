@@ -13,3 +13,4 @@ src-capacitor/ios/DerivedData/
 src-capacitor/ios/App/build/
 *.xcuserstate
 xcuserdata/
+tests/e2e/shots/

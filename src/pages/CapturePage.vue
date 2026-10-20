@@ -4,8 +4,18 @@
     <template v-if="rec.phase === 'idle'">
       <div v-if="error" class="lk-error" role="alert">{{ error }}</div>
       <div v-if="library.loaded && !options.length" class="lk-info">You need a course and a module first. Add them on the My courses screen.</div>
-      <q-select v-model="moduleId" :options="options" emit-value map-options outlined label="Course and module" class="q-mb-md" :disable="!options.length" />
+      <q-select v-model="courseId" :options="courseOptions" emit-value map-options outlined label="Course" class="q-mb-md" behavior="menu" popup-content-class="lk-pick" :disable="!courseOptions.length" />
+      <q-select v-model="moduleId" :options="moduleOptions" emit-value map-options outlined label="Module" class="q-mb-md" behavior="menu" popup-content-class="lk-pick" :disable="!moduleOptions.length" />
+      <div v-if="courseId && !moduleOptions.length" class="lk-meta q-mb-md">This course has no module yet. Add one on the Courses screen.</div>
+
       <q-input v-model="title" outlined label="Lecture title" maxlength="160" class="q-mb-md" />
+      <q-btn-toggle v-model="camera" spread unelevated no-caps toggle-color="primary" color="white" text-color="grey-8" class="lk-mode q-mb-md"
+                    :options="[{ label: 'Sound only', value: false, icon: 'mic' }, { label: 'Camera + sound', value: true, icon: 'videocam' }]" />
+      <div v-if="camera" class="lk-cam q-mb-md">
+        <video :ref="setVideo" muted playsinline autoplay />
+        <q-btn round dense unelevated color="grey-9" icon="cameraswitch" aria-label="Switch camera" class="lk-flip" @click="flip" />
+        <div v-if="camError" class="lk-cam-msg">{{ camError }}</div>
+      </div>
       <q-card flat class="lk-card q-mb-md">
         <q-item clickable @click="pick">
           <q-item-section avatar><q-icon name="slideshow" color="primary" size="28px" /></q-item-section>
@@ -16,22 +26,26 @@
           <q-item-section side><span class="text-primary text-weight-medium">{{ rec.slides.length ? 'CHANGE' : 'ADD' }}</span></q-item-section>
         </q-item>
       </q-card>
-      <div class="lk-meta q-mb-md"><q-icon name="info" size="16px" /> Record only where the lecturer agrees. Keep the phone near the lecturer; you can lock the screen while it records.</div>
-      <q-btn unelevated color="negative" size="lg" no-caps icon="mic" label="Start recording" class="full-width" :loading="starting" :disable="!moduleId" @click="start" />
+      <div class="lk-meta q-mb-md"><q-icon name="info" size="16px" />
+        <template v-if="camera"> Point the camera at the board or screen. Keep this screen open and the phone still: the camera stops if you leave the app or lock the phone. Record only where the lecturer agrees.</template>
+        <template v-else> Record only where the lecturer agrees. Keep the phone near the lecturer; you can lock the screen while it records.</template>
+      </div>
+      <q-btn unelevated color="negative" size="lg" no-caps :icon="camera ? 'videocam' : 'center_focus_strong'" label="Start recording" class="full-width" :loading="starting" :disable="!moduleId" @click="start" />
     </template>
 
     <!-- recording -->
     <template v-else-if="rec.active">
       <div class="lk-meta">{{ where }}</div>
       <div class="lk-section-title q-mb-sm">{{ rec.title }}</div>
-      <div class="lk-panel" :class="rec.phase">
+      <div class="lk-panel" :class="[rec.phase, { cam: rec.camera }]">
         <div class="lk-panel-top"><span class="dot" /> {{ rec.phase === 'paused' ? 'PAUSED' : rec.phase === 'interrupted' ? 'INTERRUPTED' : 'REC' }} {{ rec.clockText(rec.seconds) }}</div>
-        <div class="lk-bars" aria-hidden="true"><span v-for="(h, i) in bars" :key="i" :style="{ height: h + 'px' }" /></div>
+        <video v-if="rec.camera" :ref="setVideo" class="lk-rec-video" muted playsinline autoplay />
+        <div class="lk-bars" :class="{ small: rec.camera }" aria-hidden="true"><span v-for="(h, i) in bars" :key="i" :style="{ height: (rec.camera ? Math.round(h / 3) : h) + 'px' }" /></div>
         <div class="lk-panel-note">{{ levelText }}</div>
       </div>
       <div v-if="rec.notice" class="lk-info q-mt-md" role="status">{{ rec.notice }}</div>
       <div v-if="rec.error" class="lk-error q-mt-md" role="alert">{{ rec.error }}</div>
-      <div class="lk-meta text-center q-my-md">Keep the phone near the lecturer. You can lock the screen; recording continues.</div>
+      <div class="lk-meta text-center q-my-md">{{ rec.camera ? 'Keep this screen open: the camera stops if you leave the app or lock the phone.' : 'Keep the phone near the lecturer. You can lock the screen; recording continues.' }}</div>
       <div class="lk-controls">
         <q-btn flat round size="lg" :icon="rec.phase === 'recording' ? 'pause' : 'play_arrow'" :aria-label="rec.phase === 'recording' ? 'Pause' : 'Resume'" @click="rec.phase === 'recording' ? rec.pause() : rec.resume()" />
         <q-btn round size="xl" color="negative" icon="stop" aria-label="Stop" class="lk-stop" @click="confirmStop" />
@@ -83,11 +97,11 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import { useLibraryStore } from '../stores/library'
-import { useRecordingStore } from '../stores/recording'
+import { cameraRecorder, useRecordingStore } from '../stores/recording'
 import { useSettingsStore } from '../stores/settings'
 import { pickSlides } from '../recording/files'
 import { friendly } from '../util/errors'
@@ -100,13 +114,40 @@ const library = useLibraryStore()
 const rec = useRecordingStore()
 const settings = useSettingsStore()
 const error = ref('')
+const camera = ref(false)
+const facing = ref('environment')
+const camError = ref('')
+let videoEl = null
+const setVideo = (el) => { videoEl = el; attach() }
+function attach() {
+  if (!videoEl) return
+  const s = cameraRecorder().stream()
+  if (s && videoEl.srcObject !== s) videoEl.srcObject = s
+}
+async function openPreview() {
+  camError.value = ''
+  try { await cameraRecorder().preview(facing.value); await nextTick(); attach() } catch (e) { camError.value = 'The camera or microphone is off. Turn them on for Lecture Assistant in the phone Settings.' }
+}
+watch(camera, (on) => { if (on) openPreview(); else cameraRecorder().stopPreview() })
+function flip() { facing.value = facing.value === 'environment' ? 'user' : 'environment'; openPreview() }
+function onHidden() { if (document.hidden && rec.active && rec.camera) rec.notice = 'The camera stops when the app is in the background. Come back to this screen to carry on.' }
+onMounted(() => document.addEventListener('visibilitychange', onHidden))
+onBeforeUnmount(() => { document.removeEventListener('visibilitychange', onHidden); if (!rec.active) cameraRecorder().stopPreview() })
 const starting = ref(false)
 const moduleId = ref(Number(route.query.module) || null)
 const stamp = new Date()
 const title = ref(`Lecture ${stamp.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][stamp.getMonth()]} ${String(stamp.getHours()).padStart(2, '0')}:${String(stamp.getMinutes()).padStart(2, '0')}`)
 
 const options = computed(() => library.courses.flatMap((c) => c.modules.map((m) => ({ label: `${c.name} › ${m.name}`, value: m.id }))))
-watch(options, (o) => { if (!moduleId.value && o.length) moduleId.value = o[0].value }, { immediate: true })
+const courseId = ref(null)
+const courseOptions = computed(() => library.courses.map((c) => ({ label: c.name, value: c.id })))
+const moduleOptions = computed(() => ((library.courses.find((c) => c.id === courseId.value) || {}).modules || []).map((m) => ({ label: m.name, value: m.id })))
+// the course follows the module that was asked for (a link from a module page); else the first course
+watch(() => library.courses, (cs) => {
+  if (!cs.length) return
+  if (courseId.value == null) courseId.value = (cs.find((c) => c.modules.some((m) => m.id === moduleId.value)) || cs[0]).id
+}, { immediate: true })
+watch(courseId, () => { if (!moduleOptions.value.some((m) => m.value === moduleId.value)) moduleId.value = moduleOptions.value.length ? moduleOptions.value[0].value : null }, { immediate: true })
 const where = computed(() => (options.value.find((o) => o.value === rec.moduleId) || {}).label || '')
 const slideText = computed(() => (rec.slides.length ? rec.slides.map((s) => `${s.name}${s.size ? ` · ${formatSize(s.size)}` : ''}`).join(', ') : '(optional) PDF or PowerPoint'))
 
@@ -139,7 +180,9 @@ async function start() {
   error.value = ''
   starting.value = true
   try {
-    await rec.start({ moduleId: moduleId.value, title: title.value.trim() || 'Lecture', slides: rec.slides })
+    await rec.start({ moduleId: moduleId.value, title: title.value.trim() || 'Lecture', slides: rec.slides, camera: camera.value, facing: facing.value })
+    await nextTick()
+    attach()
   } catch (e) {
     error.value = e.message || friendly(e)
   } finally {
@@ -167,6 +210,14 @@ async function sendNow() { await settings.setWifiOnly(false); rec.kick() }
 .lk-bars { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 120px; }
 .lk-bars span { width: 6px; border-radius: 3px; background: #5aa5f0; transition: height 0.15s; }
 .lk-panel-note { text-align: center; font-size: 14px; }
+.lk-mode { border: 1px solid var(--lk-border); border-radius: 8px; background: var(--lk-surface); }
+.lk-cam { position: relative; background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 10; }
+.lk-cam video, .lk-rec-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lk-flip { position: absolute; right: 10px; bottom: 10px; opacity: 0.85; }
+.lk-cam-msg { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; color: #fff; font-size: 13px; background: rgba(0, 0, 0, 0.6); }
+.lk-panel.cam { min-height: 0; padding: 12px; }
+.lk-rec-video { margin: 10px 0; border-radius: 8px; aspect-ratio: 16 / 10; background: #000; }
+.lk-bars.small { flex: none; min-height: 36px; }
 .lk-controls { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; margin-bottom: 16px; }
 .lk-spacer { width: 48px; }
 .lk-stop { width: 84px; height: 84px; }

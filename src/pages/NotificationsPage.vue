@@ -1,7 +1,7 @@
 <template>
   <q-page class="lk-page">
     <div class="row items-center q-mb-md">
-      <div class="lk-section-title col">Notifications</div>
+      <div class="col" />
       <q-btn v-if="notes.unread" flat dense no-caps color="primary" label="Mark all as read" @click="notes.markAllRead()" />
       <q-btn v-if="items.length" flat dense no-caps color="grey-7" label="Clear" @click="notes.clear()" />
     </div>
