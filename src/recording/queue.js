@@ -8,7 +8,7 @@ export const WAITS = [2, 5, 15, 30, 60]
 export function makeQueue({ store, upload, allowed = async () => ({ ok: true }), onChange = () => {}, sleep = (s) => new Promise((r) => setTimeout(r, s * 1000)), waits = WAITS }) {
   let running = false
   let again = false
-  const status = { pending: 0, sent: 0, paused: null, waiting: null, fatal: null, retryIn: 0 }
+  const status = { pending: 0, sent: 0, paused: null, waiting: null, fatal: null, retryIn: 0, lastError: '' }
   const emit = () => onChange({ ...status })
 
   async function count() {
@@ -33,6 +33,7 @@ export function makeQueue({ store, upload, allowed = async () => ({ ok: true }),
           await store.put({ ...next, state: 'sent' })
           status.paused = null
           status.fatal = null
+          status.lastError = ''
           break
         } catch (e) {
           if (e.status === 401) { status.paused = 'login'; status.retryIn = 0; await count(); emit(); return }
@@ -41,6 +42,7 @@ export function makeQueue({ store, upload, allowed = async () => ({ ok: true }),
             await store.remove(next.sessionId, next.index)
             break
           }
+          status.lastError = String((e && (e.message || e.code)) || (e && e.status) || 'unknown error')       // shown on the screen, so a problem can be told
           const wait = waits[Math.min(attempt, waits.length - 1)]
           attempt += 1
           status.retryIn = wait

@@ -47,7 +47,7 @@ export const useRecordingStore = defineStore('recording', {
     chunkSeconds: 300, overlap: 5, folder: '',
     slides: [],               // [{ name, size, path? , blob? }]
     total: 0, jobId: null, job: null,
-    sent: 0, pending: 0, waiting: null, retryIn: 0, paused401: false, fatal: null,
+    sent: 0, pending: 0, waiting: null, retryIn: 0, paused401: false, fatal: null, lastError: '',
     error: '', notice: '',
     unsent: null,             // a recording that was cut short (app closed, phone restarted): { sessionId, title, parts }
   }),
@@ -67,7 +67,7 @@ export const useRecordingStore = defineStore('recording', {
           const st = await Network.getStatus()
           return st.connectionType === 'wifi' ? { ok: true } : { ok: false, why: 'wifi' }
         },
-        onChange: (q) => { this.sent = q.sent; this.pending = q.pending; this.waiting = q.waiting; this.retryIn = q.retryIn; this.paused401 = q.paused === 'login'; this.fatal = q.fatal },
+        onChange: (q) => { this.sent = q.sent; this.pending = q.pending; this.waiting = q.waiting; this.retryIn = q.retryIn; this.paused401 = q.paused === 'login'; this.fatal = q.fatal; this.lastError = q.lastError || '' },
       })
       return queue
     },
