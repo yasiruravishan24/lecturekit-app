@@ -245,3 +245,35 @@ test('camera mode on its side while recording: the timer is not cut off', async 
   expect(dot.y + dot.height).toBeLessThanOrEqual(box.y + box.height + 1)
   await page.screenshot({ path: 'tests/e2e/shots/stage-rec-side.png' })
 })
+
+test('the loading screen shows while the app starts, then gives way to the Home screen', async ({ page }) => {
+  const user = await makeUser('m13')
+  await loginAs(page, user)
+  await page.route('**/api/courses*', async (r) => { await new Promise((x) => setTimeout(x, 1500)); r.continue() })          // a slow server
+  await page.goto('/#/')
+  await expect(page.locator('.lk-splash')).toBeVisible()
+  await expect(page.getByText('Lecture Assistant').first()).toBeVisible()
+  await page.screenshot({ path: 'tests/e2e/shots/splash.png' })
+  await expect(page.getByText('Welcome back!')).toBeVisible({ timeout: 15000 })
+  await expect(page.locator('.lk-splash')).toHaveCount(0)
+  await page.getByLabel('Main').getByRole('link', { name: 'Courses' }).click()
+  await page.getByLabel('Main').getByRole('link', { name: 'Home' }).click()
+  await expect(page.locator('.lk-splash')).toHaveCount(0)                                // only once, not on every visit
+})
+
+test('cancel the notes while they are being made: the lecture is deleted and the phone leaves the page', async ({ page }) => {
+  test.setTimeout(120000)
+  const user = await makeUser('m14')
+  const { session, module } = await makeSession(user, 'By mistake')
+  const form = new FormData()
+  form.append('recording', new Blob([readFileSync(sample('sample-recording.m4a'))]), 'lecture.m4a')
+  await fetch('https://localhost:8443/api/sessions/' + session.id + '/upload', { method: 'POST', headers: { Authorization: `Bearer ${user.token}` }, body: form })
+  await fetch('https://localhost:8443/api/sessions/' + session.id + '/process', { method: 'POST', headers: { Authorization: `Bearer ${user.token}` } })
+  await loginAs(page, user)
+  await page.goto(`/#/sessions/${session.id}`)
+  await expect(page.getByText('Making your notes')).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: 'Cancel and delete' }).click()
+  await expect(page).toHaveURL(new RegExp(`#/modules/${module.id}`), { timeout: 60000 })
+  expect((await api('GET', `/sessions/${session.id}`, user)).status).toBe(404)
+})

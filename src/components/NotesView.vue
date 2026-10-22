@@ -161,15 +161,15 @@
       </q-tab-panel>
 
       <q-tab-panel name="deeper" class="lk-no-print lk-mom-panel">
-        <deeper-view :deeper="deeper" :notes="notes" :starting="startingDeeper" :auto="deeperAuto" @start="$emit('start-deeper')" />
+        <deeper-view :deeper="deeper" :notes="notes" :starting="startingDeeper" :auto="deeperAuto" @start="$emit('start-deeper')" @cancel="$emit('cancel-extra', 'deeper')" />
       </q-tab-panel>
 
       <q-tab-panel name="moments" class="lk-no-print lk-mom-panel">
-        <shots-gallery :shots="shots" :busy="visualsBusy" :can-play="!!(replay && replay.state === 'ready')" :empty-title="momentsEmpty.title" :empty-text="momentsEmpty.text" @play="playFrom" />
+        <shots-gallery :shots="shots" :busy="visualsBusy" :can-play="!!(replay && replay.state === 'ready')" :empty-title="momentsEmpty.title" :empty-text="momentsEmpty.text" @play="playFrom" @cancel="$emit('cancel-extra', 'visuals')" />
       </q-tab-panel>
 
       <q-tab-panel name="recording" class="lk-no-print lk-mom-panel">
-        <replay-player ref="player" :replay="replay" :shots="shots" :can-make="canMakeReplay" :starting="startingReplay" :auto="replayAuto" @make="$emit('make-replay')" />
+        <replay-player ref="player" :replay="replay" :shots="shots" :can-make="canMakeReplay" :starting="startingReplay" :auto="replayAuto" @make="$emit('make-replay')" @cancel="$emit('cancel-extra', visualsBusy ? 'visuals' : 'replay')" />
       </q-tab-panel>
     </q-tab-panels>
   </q-card>
@@ -199,7 +199,7 @@ const props = defineProps({
   deeperAuto: Boolean,
   replayAuto: Boolean,
 })
-defineEmits(['make-replay', 'start-deeper'])
+defineEmits(['make-replay', 'start-deeper', 'cancel-extra'])
 const tab = ref('full')
 const tabList = computed(() => [
   { name: 'full', icon: 'description', label: 'Notes' },

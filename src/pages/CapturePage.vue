@@ -121,6 +121,7 @@
 
         <div class="lk-safe"><q-icon name="lock" size="16px" /> Your recording is saved on this phone until it has been sent.</div>
         <q-btn outline no-caps color="primary" class="full-width q-mt-md" icon="home" label="Leave this screen" to="/" />
+        <q-btn v-if="rec.phase === 'processing'" flat no-caps color="negative" class="full-width q-mt-xs" icon="close" label="Cancel and delete this lecture" :loading="cancelling" @click="cancelNotes" />
       </q-card>
     </template>
     <camera-stage v-if="stageOpen" ref="stage" v-model:level="showLevel" v-model:grid="showGrid" :facing="facing" :tilt="tilt" :starting="starting"
@@ -136,6 +137,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import { useLibraryStore } from '../stores/library'
+import * as sessionsApi from '../api/sessions'
 import { useRecordingStore } from '../stores/recording'
 import { useSettingsStore } from '../stores/settings'
 import { pickSlides } from '../recording/files'
@@ -275,6 +277,14 @@ function confirmStop() {
 }
 function confirmDiscard() {
   $q.dialog({ title: 'Discard this recording?', message: 'It cannot be recovered.', cancel: true, ok: { label: 'Discard', color: 'negative', unelevated: true }, persistent: true }).onOk(() => rec.discard())
+}
+const cancelling = ref(false)
+function cancelNotes() {
+  $q.dialog({ title: 'Cancel and delete this lecture?', message: 'The processing stops, and the lecture, its recording and anything made so far are deleted. This cannot be undone.', cancel: { label: 'Keep going', flat: true }, ok: { label: 'Cancel and delete', color: 'negative', unelevated: true }, persistent: true })
+    .onOk(async () => {
+      cancelling.value = true
+      try { await sessionsApi.cancel(rec.sessionId); await rec.reset() } catch (e) { if (e.code !== 'nothing_to_cancel') error.value = friendly(e) } finally { cancelling.value = false }
+    })
 }
 async function sendNow() { await settings.setWifiOnly(false); rec.kick() }
 </script>

@@ -41,6 +41,10 @@
       <q-icon name="info" size="20px" />
       This takes a few minutes. You can leave this page and come back; the lecture will show as Completed.
     </div>
+    <div class="lk-progress-cancel lk-no-print">
+      <span class="lk-meta">Pressed Make notes by mistake? Cancel stops it and deletes this lecture.</span>
+      <q-btn outline no-caps color="negative" icon="close" :label="cancelling ? 'Stopping…' : 'Cancel'" :loading="cancelling" :disable="cancelling" @click="$emit('cancel')" />
+    </div>
   </q-card>
 </template>
 
@@ -48,7 +52,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { currentStep, stageText, stepList } from '../util/stages'
 
-const props = defineProps({ job: { type: Object, default: null }, hasSlides: Boolean })
+const props = defineProps({ job: { type: Object, default: null }, hasSlides: Boolean, cancelling: Boolean })
+defineEmits(['cancel'])
 
 const NOTES = {
   received: 'Your files are safely on the server.',
@@ -76,6 +81,8 @@ const elapsedText = computed(() => {
 </script>
 
 <style scoped>
+.lk-progress-cancel { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 28px 16px; border-top: 1px solid var(--lk-border); }
+@media (max-width: 599px) { .lk-progress-cancel { padding: 12px 16px 16px; } }
 .lk-progress { overflow: hidden; }
 .lk-progress-head { display: flex; align-items: center; gap: 16px; padding: 22px 28px 0; }
 .lk-progress-body { display: grid; grid-template-columns: minmax(220px, 320px) minmax(0, 1fr); gap: 32px; align-items: center; padding: 24px 28px; }

@@ -24,6 +24,7 @@
       <p class="lk-meta">{{ stageText }}</p>
       <q-linear-progress rounded size="8px" :value="((deeper && deeper.percent) || 0) / 100" :indeterminate="!deeper || deeper.state !== 'processing'" style="max-width: 360px; margin: 0 auto" />
       <div class="lk-meta">You can leave this page. You will be told when it is ready.</div>
+      <q-btn flat no-caps color="negative" icon="close" label="Cancel" @click="$emit('cancel')" />
     </div>
 
     <!-- ready -->
@@ -121,7 +122,7 @@ import { computed, ref, watch } from 'vue'
 import RichText from './RichText.vue'
 import { DEEPER_NAME, GAPS_NAME, GAPS_TITLE } from '../util/names'
 
-defineEmits(['start'])
+defineEmits(['start', 'cancel'])
 const props = defineProps({ deeper: { type: Object, default: null }, notes: { type: Object, required: true }, starting: Boolean, auto: Boolean })
 const sel = ref(1)
 const pickOpen = ref(false)

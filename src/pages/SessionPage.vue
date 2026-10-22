@@ -36,7 +36,7 @@
       <error-banner :message="error" />
 
       <!-- processing -->
-      <progress-panel v-if="isBusy(session)" :job="job" :has-slides="session.has_slides" />
+      <progress-panel v-if="isBusy(session)" :job="job" :has-slides="session.has_slides" :cancelling="cancelling" @cancel="cancelMain" />
 
       <!-- failed -->
       <q-card v-else-if="session.state === 'failed'" flat bordered class="lk-card">
@@ -93,7 +93,7 @@
 
       <!-- done -->
       <notes-view v-else-if="notes" :notes="notes" :session-id="session.id" :slide-count="slideCount" :quiz-count="quizCount" :attempts="attempts"
-                  :shots="shots" :replay="replay" :visuals-busy="visualsBusy" :can-make-replay="canMakeReplay" :starting-replay="startingReplay" :deeper="deeper" :starting-deeper="startingDeeper" :deeper-auto="deeperAuto" :replay-auto="replayAuto" @make-replay="startReplay" @start-deeper="startDeeper" />
+                  :shots="shots" :replay="replay" :visuals-busy="visualsBusy" :can-make-replay="canMakeReplay" :starting-replay="startingReplay" :deeper="deeper" :starting-deeper="startingDeeper" :deeper-auto="deeperAuto" :replay-auto="replayAuto" @make-replay="startReplay" @start-deeper="startDeeper" @cancel-extra="cancelExtra" />
       <q-inner-loading :showing="loadingNotes" />
     </template>
 
@@ -197,6 +197,11 @@ async function load() {
     session.value = await lib.getSession(props.id)
     notFound.value = false
   } catch (e) {
+    if (cancelling.value && (e.status === 404 || e.status === 422)) {              // the lecture was deleted by Cancel: leave
+      library.refresh().catch(() => {})
+      router.replace(leaveTo || '/courses')
+      return
+    }
     if (e.status === 404 || e.status === 422) notFound.value = true
     else error.value = friendly(e)
     return
@@ -304,6 +309,29 @@ async function startReplay() {
   }
 }
 
+// Cancel: notes in the making stop and the lecture (with its recording) is deleted; an extra (pictures, replay, learn more) only stops
+const cancelling = ref(false)
+let leaveTo = ''
+async function cancelMain() {
+  if (!(await confirmDelete({ title: 'Cancel and delete this lecture?', message: 'The processing stops, and the lecture, its recording and anything made so far are deleted. This cannot be undone.', ok: 'Cancel and delete' }))) return
+  cancelling.value = true
+  leaveTo = `/modules/${session.value.module_id}`
+  try {
+    const r = await sessionsApi.cancel(props.id)
+    if (r.state === 'deleted') { await library.refresh().catch(() => {}); router.replace(leaveTo); return }
+    job.value = { ...(job.value || {}), stage: 'cancelling' }                                    // it stops within seconds; this page then finds the lecture gone
+  } catch (e) {
+    cancelling.value = false
+    if (e.code === 'nothing_to_cancel') { await load(); return }                                // it had just finished
+    error.value = friendly(e)
+  }
+}
+async function cancelExtra(kind) {
+  try { await sessionsApi.cancel(props.id, kind) } catch (e) { if (e.code !== 'nothing_to_cancel') $q.notify({ type: 'negative', message: friendly(e) }) }
+  refreshExtras()
+  refreshDeeper()
+}
+
 // poll the job every 2 s (every 5 s after the first minute); pause while the tab is hidden
 function schedulePoll() {
   stopPolling()
@@ -317,7 +345,7 @@ async function poll() {
   try {
     const id = (job.value && job.value.id) || (session.value.latest_job && session.value.latest_job.id)
     if (id) job.value = await sessionsApi.getJob(id)
-    if (job.value && (job.value.state === 'done' || job.value.state === 'failed')) {
+    if (job.value && (job.value.state === 'done' || job.value.state === 'failed' || job.value.state === 'cancelled')) {
       await load()
       library.refresh().catch(() => {})
       return

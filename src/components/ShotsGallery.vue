@@ -3,6 +3,7 @@
     <div v-if="busy" class="lk-shots-wait">
       <q-spinner color="primary" size="28px" />
       <span>Looking at the board and the screen of the recording. Your notes will be updated when this is done.</span>
+      <q-btn flat dense no-caps color="negative" label="Cancel" class="q-ml-auto" @click="$emit('cancel')" />
     </div>
     <div v-if="!shots.length && !busy" class="text-center q-py-lg">
       <q-icon name="photo_library" size="44px" class="lk-dim" />
@@ -64,7 +65,7 @@ import { computed, ref, watch } from 'vue'
 import { clock } from '../util/format'
 
 const props = defineProps({ shots: { type: Array, default: () => [] }, busy: Boolean, canPlay: Boolean, emptyTitle: { type: String, default: 'No board or screen content found' }, emptyText: { type: String, default: 'Pictures appear here when the recording shows a board, a slide or a screen.' } })
-defineEmits(['play'])
+defineEmits(['play', 'cancel'])
 const sel = ref(0)
 const filter = ref('all')
 const label = (k) => ({ board: 'Board', slide: 'Slide on screen', screen: 'Screen' }[k] || 'Picture')

@@ -11,6 +11,7 @@ export const STAGE_TEXT = {
   quiz: 'Writing the quiz',
   write: 'Saving',
   done: 'Done',
+  cancelling: 'Stopping',
 }
 
 export const stageText = (stage) => STAGE_TEXT[stage] || 'Working'

@@ -214,6 +214,7 @@ export const useRecordingStore = defineStore('recording', {
           this.job = await sessionsApi.getJob(this.jobId)
           if (this.job.state === 'done') { this.phase = 'done'; return }
           if (this.job.state === 'failed') { this.error = this.job.error_message || 'The notes could not be made.'; this.phase = 'failed'; return }
+          if (this.job.state === 'cancelled') { await this.reset(); return }                    // stopped by the person (here or on another device): the lecture is gone
         } catch { /* try again */ }
         jobTimer = setTimeout(tick, 3000)
       }

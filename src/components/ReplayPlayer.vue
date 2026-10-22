@@ -49,6 +49,7 @@
       <div class="lk-meta q-mb-md">{{ waitText }}</div>
       <q-linear-progress rounded size="8px" :value="(replay.percent || 0) / 100" :indeterminate="replay.state !== 'processing'" style="max-width: 360px; margin: 0 auto" />
       <div class="lk-meta q-mt-sm">Your notes are already ready. This runs in the background.</div>
+      <q-btn flat no-caps color="negative" icon="close" label="Cancel" class="q-mt-sm" @click="$emit('cancel')" />
     </div>
 
     <!-- failed -->
@@ -74,7 +75,7 @@ import { computed, nextTick, ref } from 'vue'
 import { clock, formatSize } from '../util/format'
 
 const props = defineProps({ replay: { type: Object, default: null }, shots: { type: Array, default: () => [] }, canMake: Boolean, starting: Boolean, auto: Boolean })
-defineEmits(['make'])
+defineEmits(['make', 'cancel'])
 const media = ref(null)
 const speeds = [0.75, 1, 1.25, 1.5, 2]
 const speed = ref(1)

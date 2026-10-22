@@ -1,5 +1,6 @@
 <template>
   <q-layout view="hHh lpR fFf">
+    <launch-splash v-if="booting" />
     <q-header v-if="!route.meta.bare" class="lk-bar">
       <q-toolbar class="lk-toolbar">
         <q-btn v-if="route.meta.back" flat round dense icon="arrow_back" aria-label="Back" @click="goBack" />
@@ -25,6 +26,10 @@
   </q-layout>
 </template>
 
+<script>
+let bootShown = false                     // the loading screen shows once when the app starts, not again on every visit to this layout
+</script>
+
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -34,6 +39,7 @@ import { useNotificationsStore } from '../stores/notifications'
 import { useRealtimeStore } from '../stores/realtime'
 import { useRecordingStore } from '../stores/recording'
 import UnsentBanner from '../components/UnsentBanner.vue'
+import LaunchSplash from '../components/LaunchSplash.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -44,6 +50,7 @@ const realtime = useRealtimeStore()
 const recording = useRecordingStore()
 const showTabs = computed(() => !!route.meta.tab && !recording.active)       // the tab bar is hidden while recording, so a tap cannot leave the recording screen
 const pageTitle = ref('')
+const booting = ref(!bootShown)                  // the loading screen: when the app starts, until the person and the lectures are loaded (at most a few seconds)
 const title = computed(() => pageTitle.value || route.meta.title || 'Lecture Assistant')
 watch(() => route.fullPath, () => { pageTitle.value = '' })
 watch(() => recording.phase, (p) => { if (p === 'idle') recording.checkUnsent().catch(() => {}) })
@@ -54,12 +61,20 @@ const goBack = () => (window.history.length > 1 ? router.back() : router.replace
 let timer = null
 onMounted(async () => {
   recording.checkUnsent().catch(() => {})
-  try { await auth.check() } catch { /* offline: the pages show their own message */ }
-  if (!auth.loggedIn) return
-  notes.load()
-  realtime.start()
-  library.load().catch(() => {})
-  timer = setInterval(() => { if (!realtime.connected && !document.hidden) library.refresh().catch(() => {}) }, 8000)      // the fallback when the socket is down
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+  const finish = () => { booting.value = false; bootShown = true }
+  const limit = setTimeout(finish, 10000)               // never stay on the loading screen longer than this (no connection, a slow server)
+  try {
+    try { await auth.check() } catch { /* offline: the pages show their own message */ }
+    if (!auth.loggedIn) return
+    notes.load()
+    realtime.start()
+    await Promise.all([library.load().catch(() => {}), wait(booting.value ? 700 : 0)])        // a short minimum, so the screen does not just flash
+    timer = setInterval(() => { if (!realtime.connected && !document.hidden) library.refresh().catch(() => {}) }, 8000)      // the fallback when the socket is down
+  } finally {
+    clearTimeout(limit)
+    finish()
+  }
 })
 onBeforeUnmount(() => { clearInterval(timer); realtime.stop() })
 </script>
